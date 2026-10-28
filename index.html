@@ -6,62 +6,46 @@
   <title>PastrelCraft 🌿 — Apprentissage Doux & TDAH</title>
   
   <!-- 1. CHARGEMENT DES BIBLIOTHÈQUES (CDN) -->
-  <!-- React & React-DOM : Pour faire tourner le moteur de l'application -->
+  <!-- React & React-DOM -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   
-  <!-- Babel : Permet au navigateur de lire la syntaxe JSX/React directement dans le fichier -->
+  <!-- Babel -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   
-  <!-- Tailwind CSS : Gestion du design, des couleurs pastel et de la mise en page -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <!-- Lucide Icons : Banque d'icônes pour l'interface -->
+  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Configuration des polices et styles spécifiques TDAH / Pastel -->
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600&display=swap');
     body {
-      font-family: 'Lexend', sans-serif; /* Police très lisible et aérée */
-      background-color: #fafaf9; /* Fond blanc cassé très doux pour les yeux */
+      font-family: 'Lexend', sans-serif;
+      background-color: #fafaf9;
     }
   </style>
 </head>
 <body class="text-stone-700 min-h-screen">
 
-  <!-- Point d'ancrage où React va injecter toute l'application -->
   <div id="root"></div>
 
   <!-- 2. CODE REACT / JAVASCRIPT DE PASTRELCRAFT -->
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // ==========================================
-    // COMPOSANT PRINCIPAL : PastrelCraft
-    // ==========================================
     function PastrelCraft() {
-      
       // ----------------------------------------
-      // A. ÉTATS (STATE) : Les données de l'application
+      // A. ÉTATS (STATE)
       // ----------------------------------------
-      
-      // Onglet actif ('study-cards', 'study-qcm', 'import-sheet', 'ai-gen')
       const [activeTab, setActiveTab] = useState('study-cards');
-      
-      // Clé API Gemini sauvegardée localement (Bring Your Own Key)
       const [apiKey, setApiKey] = useState(() => localStorage.getItem('pastrelcraft_gemini_key') || '');
-      const [tempApiKey, setTempApiKey] = useState('');
-      const [showKeyModal, setShowKeyModal] = useState(false);
-
-      // Système de Gamification TDAH (XP et Séries)
       const [xp, setXp] = useState(() => Number(localStorage.getItem('pastrelcraft_xp')) || 0);
       const [streak, setStreak] = useState(() => Number(localStorage.getItem('pastrelcraft_streak')) || 0);
-
-      // Mode Zen / Anti-distraction
       const [hideDistractions, setHideDistractions] = useState(false);
 
-      // Données des paquets de révision (Decks) et cartes
       const [decks, setDecks] = useState([
         {
           id: 'demo-botanique',
@@ -76,15 +60,12 @@
       ]);
       const [selectedDeckId, setSelectedDeckId] = useState('demo-botanique');
 
-      // Écran de Révision Flashcard
       const [currentCardIndex, setCurrentCardIndex] = useState(0);
       const [isFlipped, setIsFlipped] = useState(false);
 
-      // Mode QCM Instantané (généré à la volée depuis une carte)
       const [instantQuiz, setInstantQuiz] = useState(null);
       const [instantQuizLoading, setInstantQuizLoading] = useState(false);
 
-      // Module d'Importation Google Sheet
       const [sheetUrl, setSheetUrl] = useState('');
       const [sheetLoading, setSheetLoading] = useState(false);
       const [sheetError, setSheetError] = useState('');
@@ -94,20 +75,17 @@
       const [selectedVersoCol, setSelectedVersoCol] = useState(1);
       const [selectedImgCol, setSelectedImgCol] = useState(-1);
 
-      // Paquet de cartes actuellement sélectionné
       const currentDeck = decks.find(d => d.id === selectedDeckId) || decks[0];
 
       // ----------------------------------------
       // B. FONCTIONS AUXILIAIRES & GAINS D'XP
       // ----------------------------------------
-      
-      // Joue un son d'interaction doux via le navigateur
       const playSound = (isGood) => {
         try {
           const ctx = new (window.AudioContext || window.webkitAudioContext)();
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
-          osc.frequency.value = isGood ? 523.25 : 220; // Do aigu si réussi, grave si à revoir
+          osc.frequency.value = isGood ? 523.25 : 220;
           osc.connect(gain);
           gain.connect(ctx.destination);
           gain.gain.setValueAtTime(0.1, ctx.currentTime);
@@ -117,7 +95,6 @@
         } catch (e) {}
       };
 
-      // Ajoute des points d'XP lors de la révision
       const addReward = (isGood) => {
         playSound(isGood);
         if (isGood) {
@@ -136,8 +113,6 @@
       // ----------------------------------------
       // C. PARSER & IMPORTATION GOOGLE SHEET
       // ----------------------------------------
-      
-      // Découpe une ligne CSV en tenant compte des guillemets
       const parseCSVLine = (line) => {
         let result = [], cur = '', inQuotes = false;
         for (let i = 0; i < line.length; i++) {
@@ -150,7 +125,6 @@
         return result;
       };
 
-      // Analyse le lien du Google Sheet public
       const handleAnalyzeSheet = async (e) => {
         e.preventDefault();
         if (!sheetUrl.trim()) return;
@@ -177,7 +151,6 @@
           setSheetHeaders(headers);
           setSheetRows(lines.slice(1));
 
-          // Détection automatique intelligente des colonnes Recto / Verso / Image
           const headersLower = headers.map(h => h.toLowerCase());
           const qIdx = headersLower.findIndex(h => h.includes('question') || h.includes('recto') || h.includes('q'));
           const aIdx = headersLower.findIndex(h => h.includes('reponse') || h.includes('réponse') || h.includes('verso') || h.includes('r'));
@@ -194,7 +167,6 @@
         }
       };
 
-      // Confirme l'importation du tableau dans un paquet de cartes
       const handleConfirmImport = () => {
         if (!sheetRows.length) return;
         const importedCards = [];
@@ -246,7 +218,6 @@
       const percentSeen = totalCards > 0 ? Math.round((cardsSeen / totalCards) * 100) : 0;
       const percentMastered = totalCards > 0 ? Math.round((cardsMastered / totalCards) * 100) : 0;
 
-      // Met à jour l'état de maîtrise d'une carte
       const handleUpdateCardStatus = (cardId, masteryLevel) => {
         const isGood = masteryLevel === 'easy';
         addReward(isGood);
@@ -269,7 +240,6 @@
 
         setDecks(updatedDecks);
 
-        // Passage automatique à la carte suivante
         if (currentCardIndex < currentDeck.cards.length - 1) {
           setCurrentCardIndex(prev => prev + 1);
           setIsFlipped(false);
@@ -277,7 +247,6 @@
         }
       };
 
-      // Conversion instantanée d'une carte en QCM (avec option IA)
       const handleGenerateInstantQuiz = async () => {
         const currentCard = currentDeck.cards[currentCardIndex];
         if (!currentCard) return;
@@ -285,7 +254,6 @@
         setInstantQuizLoading(true);
         setInstantQuiz(null);
 
-        // Si une clé Gemini est configurée, on demande à l'IA de générer de faux choix réalistes
         if (apiKey) {
           try {
             const prompt = `Génère 3 fausses réponses (distracteurs) crédibles mais distinctes pour la question suivante : "${currentCard.question}". Bonne réponse : "${currentCard.answer}". Envoie un JSON au format strict : { "distractors": ["fausse1", "fausse2", "fausse3"] }`;
@@ -317,13 +285,11 @@
             setInstantQuizLoading(false);
           }
         } else {
-          // Alternative sans IA : extrait des réponses d'autres cartes du paquet
           generateFallbackQuiz(currentCard);
           setInstantQuizLoading(false);
         }
       };
 
-      // QCM généré localement sans IA
       const generateFallbackQuiz = (card) => {
         const otherAnswers = currentDeck.cards.filter(c => c.id !== card.id).map(c => c.answer);
         const distractors = [];
@@ -342,7 +308,6 @@
         });
       };
 
-      // Re-maintien des icônes Lucide après chaque rendu
       useEffect(() => {
         if (window.lucide) window.lucide.createIcons();
       });
@@ -353,7 +318,7 @@
       return (
         <div class="max-w-3xl mx-auto px-4 py-6">
           
-          <!-- EN-TÊTE : Titre + Récompenses XP + Mode Zen -->
+          {/* EN-TÊTE : Titre + Récompenses XP + Mode Zen */}
           {!hideDistractions && (
             <header class="flex flex-wrap items-center justify-between gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-stone-200">
               <div class="flex items-center gap-3">
@@ -366,7 +331,7 @@
                 </div>
               </div>
 
-              <!-- Badges de Gamification TDAH -->
+              {/* Badges de Gamification TDAH */}
               <div class="flex items-center gap-3">
                 <div class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full text-xs font-semibold border border-amber-200">
                   ⚡ <span>{xp} XP</span>
@@ -385,7 +350,7 @@
             </header>
           )}
 
-          <!-- Bouton pour quitter le mode Zen -->
+          {/* Bouton pour quitter le mode Zen */}
           {hideDistractions && (
             <div class="flex justify-end mb-4">
               <button 
@@ -397,7 +362,7 @@
             </div>
           )}
 
-          <!-- SELECTEUR DE PAQUET DE CARTES -->
+          {/* SELECTEUR DE PAQUET DE CARTES */}
           <div class="mb-6 bg-emerald-50/60 p-4 rounded-2xl border border-emerald-100 flex flex-wrap items-center justify-between gap-3">
             <div class="flex items-center gap-2">
               <span class="text-sm font-medium text-emerald-900">Paquet actif :</span>
@@ -413,7 +378,7 @@
             </div>
           </div>
 
-          <!-- BARRE DE NAVIGATION PRINCIPALE (ONGLETS) -->
+          {/* BARRE DE NAVIGATION PRINCIPALE */}
           <nav class="flex border-b border-stone-200 mb-6 gap-2 overflow-x-auto pb-1">
             <button 
               onClick={() => setActiveTab('study-cards')}
@@ -437,19 +402,15 @@
             </button>
           </nav>
 
-          <!-- ========================================== -->
-          <!-- ONGLET 1 : RÉVISION EN FLASHCARDS          -->
-          <!-- ========================================== -->
+          {/* ONGLET 1 : RÉVISION EN FLASHCARDS */}
           {activeTab === 'study-cards' && (
             <div>
-              
-              <!-- SECTION STATISTIQUES ET PROGRESSION DE RÉVISION -->
+              {/* SECTION STATISTIQUES */}
               <div class="bg-white p-4 rounded-xl border border-stone-200 mb-6 shadow-sm">
                 <div class="flex justify-between items-center text-xs font-semibold text-stone-600 mb-2">
                   <span>Progression globale : {percentSeen}% vu</span>
                   <span class="text-emerald-600">{percentMastered}% maîtrisé</span>
                 </div>
-                <!-- Barre visuelle bicolore -->
                 <div class="w-full h-2.5 bg-stone-100 rounded-full overflow-hidden flex">
                   <div class="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${percentMastered}%` }} title="Maîtrisé"></div>
                   <div class="h-full bg-amber-300 transition-all duration-300" style={{ width: `${percentSeen - percentMastered}%` }} title="En cours"></div>
@@ -467,19 +428,17 @@
                 </div>
               ) : (
                 <div>
-                  
-                  <!-- CARTE FLASHCARD (RECTO / VERSO) -->
                   {(() => {
                     const card = currentDeck.cards[currentCardIndex];
                     if (!card) return null;
 
                     return (
                       <div>
+                        {/* CARTE FLASHCARD */}
                         <div 
                           onClick={() => setIsFlipped(!isFlipped)}
                           class="min-h-[260px] bg-white border border-stone-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden group"
                         >
-                          <!-- Tag de statut sur la carte -->
                           <div class="flex justify-between items-center text-xs">
                             <span class="text-stone-400 font-medium">{isFlipped ? 'VERSO (Réponse)' : 'RECTO (Question)'}</span>
                             <span class={`px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
@@ -491,7 +450,6 @@
                             </span>
                           </div>
 
-                          <!-- Contenu de la carte (Image + Texte) -->
                           <div class="my-auto py-4 text-center">
                             {card.image && (
                               <img src={card.image} alt="Illustration" class="max-h-40 mx-auto rounded-lg mb-4 object-contain" />
@@ -506,10 +464,8 @@
                           </div>
                         </div>
 
-                        <!-- BOUTONS D'ÉVALUATION ET DE CONVERSION EN QCM -->
+                        {/* BOUTONS D'ÉVALUATION */}
                         <div class="mt-4 flex flex-wrap gap-3 justify-between items-center">
-                          
-                          <!-- Convertir en QCM instantané -->
                           <button 
                             onClick={handleGenerateInstantQuiz}
                             disabled={instantQuizLoading}
@@ -518,7 +474,6 @@
                             {instantQuizLoading ? '⏳ Génération...' : '❓ Hésitation ? Passer en QCM'}
                           </button>
 
-                          <!-- Niveaux d'évaluation -->
                           {isFlipped && (
                             <div class="flex gap-2">
                               <button 
@@ -537,7 +492,7 @@
                           )}
                         </div>
 
-                        <!-- BLOC DU QCM INSTANSTANÉ GÉNÉRÉ -->
+                        {/* QCM INSTANTANÉ */}
                         {instantQuiz && (
                           <div class="mt-6 p-5 bg-purple-50/80 rounded-2xl border border-purple-200">
                             <h3 class="text-sm font-bold text-purple-900 mb-3">QCM Instantané de secours :</h3>
@@ -575,13 +530,112 @@
             </div>
           )}
 
-          <!-- ========================================== -->
-          <!-- ONGLET 2 : RÉVISER EN MODE QCM DÉDIÉ      -->
-          <!-- ========================================== -->
+          {/* ONGLET 2 : MODE QCM */}
           {activeTab === 'study-qcm' && (
             <div class="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
               <h2 class="text-base font-bold text-stone-800 mb-4">Mode Révision QCM</h2>
               <p class="text-xs text-stone-500 mb-6">Testez vos connaissances sous forme de choix multiples générés à partir de vos fiches.</p>
               
               {currentDeck.cards.length < 2 ? (
-                <p class="text-sm text-stone-500">Il faut au moins 2 cartes dans le paquet pour pouvoir générer un Q
+                <p class="text-sm text-stone-500">Il faut au moins 2 cartes dans le paquet pour pouvoir générer un QCM.</p>
+              ) : (
+                <button 
+                  onClick={handleGenerateInstantQuiz}
+                  class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl text-sm shadow-sm transition-colors"
+                >
+                  🎲 Générer une question QCM aléatoire
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* ONGLET 3 : IMPORTATION GOOGLE SHEET */}
+          {activeTab === 'import-sheet' && (
+            <div class="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-6">
+              <div>
+                <h2 class="text-base font-bold text-stone-800 mb-1">Importer depuis Google Sheets</h2>
+                <p class="text-xs text-stone-500">Collez le lien public de votre tableau Google Sheet pour ajouter vos cartes.</p>
+              </div>
+
+              <form onSubmit={handleAnalyzeSheet} class="space-y-3">
+                <input 
+                  type="url" 
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  value={sheetUrl}
+                  onChange={(e) => setSheetUrl(e.target.value)}
+                  class="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
+                  required
+                />
+                <button 
+                  type="submit" 
+                  disabled={sheetLoading}
+                  class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors"
+                >
+                  {sheetLoading ? '⏳ Analyse...' : '🔍 Analyser le tableau'}
+                </button>
+              </form>
+
+              {sheetError && (
+                <p class="text-xs text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-200">{sheetError}</p>
+              )}
+
+              {sheetHeaders.length > 0 && (
+                <div class="pt-4 border-t border-stone-100 space-y-4">
+                  <h3 class="text-sm font-bold text-stone-800">Choisissez le rôle des colonnes :</h3>
+                  
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label class="block text-xs font-medium text-stone-600 mb-1">📤 Recto (Question)</label>
+                      <select 
+                        value={selectedRectoCol} 
+                        onChange={(e) => setSelectedRectoCol(Number(e.target.value))}
+                        class="w-full p-2 border border-stone-200 rounded-lg text-sm"
+                      >
+                        {sheetHeaders.map((h, idx) => <option key={idx} value={idx}>{h}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label class="block text-xs font-medium text-stone-600 mb-1">📥 Verso (Réponse)</label>
+                      <select 
+                        value={selectedVersoCol} 
+                        onChange={(e) => setSelectedVersoCol(Number(e.target.value))}
+                        class="w-full p-2 border border-stone-200 rounded-lg text-sm"
+                      >
+                        {sheetHeaders.map((h, idx) => <option key={idx} value={idx}>{h}</option>)}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label class="block text-xs font-medium text-stone-600 mb-1">🖼️ Image (Optionnel)</label>
+                      <select 
+                        value={selectedImgCol} 
+                        onChange={(e) => setSelectedImgCol(Number(e.target.value))}
+                        class="w-full p-2 border border-stone-200 rounded-lg text-sm"
+                      >
+                        <option value={-1}>Aucune</option>
+                        {sheetHeaders.map((h, idx) => <option key={idx} value={idx}>{h}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={handleConfirmImport}
+                    class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl text-sm shadow-sm transition-colors"
+                  >
+                    ✅ Valider et importer {sheetRows.length} cartes
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<PastrelCraft />);
+  </script>
+</body>
+</html>
