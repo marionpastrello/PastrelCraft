@@ -150,13 +150,13 @@ nav button.on{background:var(--pl);color:var(--p)}
       <h3>📁 Importer un tableau</h3>
       <label>Dossier de destination</label>
       <select id="destFolder"></select>
-      <label>Lien d'un Google Sheet public</label>
-      <input type="text" id="sheetLink" placeholder="https://docs.google.com/spreadsheets/d/...">
+      <label>Lien d'un  Sheet public</label>
+      <input type="text" id="sheetLink" placeholder="https://docs..com/spreadsheets/d/...">
       <button onclick="importPublicSheet()">📥 Importer depuis le lien</button>
     </div>
 
     <div class="box">
-      <h3>☁️ Compte Google</h3>
+      <h3>☁️ Compte </h3>
       <p class="mu">Connecte-toi avec ton compte Google pour synchroniser automatiquement ta bibliothèque de cours dans ton Drive personnel.</p>
       <div class="row">
         <button class="dr big" onclick="googleLogin()">👤 Se connecter avec mon compte Google</button>
@@ -902,7 +902,7 @@ function addImportedCourse(name, table, link) {
 /* =====================================================================
    7. GOOGLE PRIVÉ
    ===================================================================== */
-const GOOGLE_CLIENT_ID = "715003507119-94g9f05t41d4n95015b6d19j5a805v33.apps.googleusercontent.com"; 
+const GOOGLE_CLIENT_ID = "137474343424-bbns4d2e7srmk5d7mas1i77k9p4iegh0.apps.googleusercontent.com"; 
 const G_SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.appdata';
 let gToken = null;
 
