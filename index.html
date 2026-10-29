@@ -680,7 +680,7 @@ function renderStats() {
     colStatsEl.innerHTML = colHtml;
   }
 }
-
+}
 function filtrerColonnesVides(table, cours = null) {
   if (!Array.isArray(table) || !table.length) return [];
   const largeur = Math.max(...table.map(ligne => ligne.length));
