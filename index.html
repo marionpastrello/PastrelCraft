@@ -845,12 +845,13 @@ function switchToQcmForCurrentCard() {
 
 // QCM mis à jour pour accepter une carte ciblée (ou en prendre une au hasard par défaut)
 function newQuestion(specificIndex = null) {
-  const c = activeCourse(), box = ('qcmBox');
-  if ('btnNext').classList.add('hide');
+  const c = activeCourse(), box = $('qcmBox');
+  const btnNext = $('btnNext');
+  if (btnNext) btnNext.classList.add('hide');
   
-  if (!c || c.rows.length < 2) { 
-    box.innerHTML = '<p>Il faut au moins 2 fiches pour un QCM.</p>'; 
-    return; 
+  if (!c || c.rows.length < 2) {  
+    box.innerHTML = '<p>Il faut au moins 2 fiches pour un QCM.</p>';  
+    return;  
   }
   
   const ansCol = c.back[0] ?? 1;
