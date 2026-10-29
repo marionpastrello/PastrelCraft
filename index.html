@@ -760,6 +760,7 @@ function startReview() {
     if (!c.mastered) c.mastered = [];
     if (!c.failed) c.failed = [];
   }
+  renderCard();
 }
 
 function faceHTML(c, row, cols) {
@@ -772,27 +773,36 @@ function faceHTML(c, row, cols) {
 
 function renderCard() {
   const c = activeCourse(), face = $('face');
-  $('mn').style.display = 'none';
-  $('revBar').style.width = c && c.rows.length ? (doneCount / c.rows.length * 100) + '%' : '0';
+  if ($('mn')) $('mn').style.display = 'none';
+  if ($('revBar')) $('revBar').style.width = c && c.rows.length ? (doneCount / c.rows.length * 100) + '%' : '0';
+  
   if (!c || !c.rows.length) {
     face.innerHTML = '<p>Ajoute des fiches dans l\'onglet 📚 Cours.</p>';
-    $('btnFlip').classList.add('hide'); $('answerBtns').classList.add('hide'); return;
+    if ($('btnFlip')) $('btnFlip').classList.add('hide'); 
+    if ($('answerBtns')) $('answerBtns').classList.add('hide'); 
+    return;
   }
+  
   if (!queue.length) {
     face.innerHTML = '<p style="font-size:40px">🎉</p><h3>Bravo, cours terminé !</h3><button onclick="startReview()">Recommencer</button>';
-    $('btnFlip').classList.add('hide'); $('answerBtns').classList.add('hide'); confetti(); return;
-    // 📊 MISE À JOUR DES STATS ICI : Le cours est terminé !
+    if ($('btnFlip')) ('btnFlip').classList.add('hide'); 
+    if (('answerBtns')) ('answerBtns').classList.add('hide'); 
+    
     if (c) save(); 
     renderStats(); 
-    
-    confetti(); return;
+    if (typeof confetti === 'function') confetti(); 
+    return;
   }
   const row = c.rows[queue[0]];
   face.className = 'card fl ' + (showingBack ? '' : 'rc');
   face.innerHTML = faceHTML(c, row, showingBack ? c.back : c.front);
   void face.offsetWidth;
-  $('btnFlip').classList.toggle('hide', showingBack);
-  $('answerBtns').classList.toggle('hide', !showingBack);
+  if (('btnFlip')) ('btnFlip').classList.toggle('hide', showingBack);
+  if (('answerBtns')) ('answerBtns').classList.toggle('hide', !showingBack);
+}
+function flipCard() { 
+  showingBack = true; 
+  renderCard(); 
 }
 function answerCard(good) {
   reward(good);
@@ -835,8 +845,8 @@ function switchToQcmForCurrentCard() {
 
 // QCM mis à jour pour accepter une carte ciblée (ou en prendre une au hasard par défaut)
 function newQuestion(specificIndex = null) {
-  const c = activeCourse(), box = $('qcmBox');
-  $('btnNext').classList.add('hide');
+  const c = activeCourse(), box = ('qcmBox');
+  if ('btnNext').classList.add('hide');
   
   if (!c || c.rows.length < 2) { 
     box.innerHTML = '<p>Il faut au moins 2 fiches pour un QCM.</p>'; 
@@ -884,7 +894,7 @@ function newQuestion(specificIndex = null) {
       renderStats(); // Actualise l'affichage des stats en temps réel
     }
 
-    $('btnNext').classList.remove('hide');
+    if ('btnNext').classList.remove('hide');
   });
 }
 /* =====================================================================
