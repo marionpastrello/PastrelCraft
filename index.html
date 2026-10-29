@@ -282,7 +282,7 @@ nav button.on{background:var(--pl);color:var(--p)}
   <button data-tab="qcm" onclick="showTab('qcm')">❓<br>QCM</button>
   <button data-tab="cours" onclick="showTab('cours')">📚<br>Cours</button>
   <button data-tab="ia" onclick="showTab('ia')">🤖<br>IA</button>
-  <button data-tab="stats" onclick="showTab('stats')">📊<br>Stats</button>
+  <button data-tab="tab-stats" onclick="showTab('stats')">📊<br>Stats</button>
 </nav>
 <div id="toast"></div>
 <canvas id="cf"></canvas>
@@ -727,7 +727,7 @@ function showTab(tabName) {
   }
 
   // 5. Actions spécifiques selon l'onglet
-  if (tabName === 'stats') {
+  if (tabName === 'tab-stats') {
     renderStats();
   } else if (tabName === 'qcm') {
     // Si le QCM est vide, on lance une question aléatoire par défaut
@@ -755,6 +755,11 @@ function startReview() {
   const c = activeCourse();
   queue = c ? shuffle([...c.rows.keys()]) : [];
   doneCount = 0; showingBack = false; renderCard();
+  // S'assurer que les tableaux de stats existent
+  if (c) {
+    if (!c.mastered) c.mastered = [];
+    if (!c.failed) c.failed = [];
+  }
 }
 
 function faceHTML(c, row, cols) {
@@ -776,6 +781,11 @@ function renderCard() {
   if (!queue.length) {
     face.innerHTML = '<p style="font-size:40px">🎉</p><h3>Bravo, cours terminé !</h3><button onclick="startReview()">Recommencer</button>';
     $('btnFlip').classList.add('hide'); $('answerBtns').classList.add('hide'); confetti(); return;
+    // 📊 MISE À JOUR DES STATS ICI : Le cours est terminé !
+    if (c) save(); 
+    renderStats(); 
+    
+    confetti(); return;
   }
   const row = c.rows[queue[0]];
   face.className = 'card fl ' + (showingBack ? '' : 'rc');
@@ -784,12 +794,32 @@ function renderCard() {
   $('btnFlip').classList.toggle('hide', showingBack);
   $('answerBtns').classList.toggle('hide', !showingBack);
 }
-function flipCard() { showingBack = true; renderCard(); }
 function answerCard(good) {
   reward(good);
-  const current = queue.shift();
-  if (good) doneCount++; else queue.push(current);
-  showingBack = false; renderCard();
+  const c = activeCourse();
+  const current = queue.shift(); // Index de la carte en cours
+  
+  if (c) {
+    if (!c.mastered) c.mastered = [];
+    if (!c.failed) c.failed = [];
+
+    // Nettoyage des anciens états pour éviter les doublons
+    c.mastered = c.mastered.filter(id => id !== current);
+    c.failed = c.failed.filter(id => id !== current);
+
+    if (good) {
+      doneCount++;
+      c.mastered.push(current); // On ajoute l'index aux maîtrisées
+    } else {
+      queue.push(current); // On remet la carte dans la file pour la revoir
+      c.failed.push(current); // On l'ajoute aux ratées
+    }
+    
+    save(); // Sauvegarde locale de l'état
+  }
+
+  showingBack = false; 
+  renderCard();
 }
 
 /* =====================================================================
@@ -833,6 +863,27 @@ function newQuestion(specificIndex = null) {
     });
     if (picked !== good) btn.classList.add('ko');
     reward(picked === good);
+  
+    // 📊 MISE À JOUR DES STATS POUR LE QCM
+    if (c) {
+      if (!c.mastered) c.mastered = [];
+      if (!c.failed) c.failed = [];
+
+      // Nettoyage des doublons pour cette carte (index i)
+      c.mastered = c.mastered.filter(idx => idx !== i);
+      c.failed = c.failed.filter(idx => idx !== i);
+
+      // Enregistrement selon la réussite
+      if (isCorrect) {
+        c.mastered.push(i);
+      } else {
+        c.failed.push(i);
+      }
+
+      save();        // Sauvegarde de l'application
+      renderStats(); // Actualise l'affichage des stats en temps réel
+    }
+
     $('btnNext').classList.remove('hide');
   });
 }
