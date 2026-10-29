@@ -654,10 +654,28 @@ function renderStats() {
   if (colStatsEl && c.headers && c.headers.length) {
     let colHtml = '<b>📋 Détail par colonne (Google Sheet) :</b><div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">';
     
-    // On analyse les colonnes configurées au recto/verso ou toutes les colonnes
+    // 📋 AFFICHAGE DE TOUTES LES COLONNES, MAIS MISE À JOUR CIBLÉE
+  const colStatsEl = $('columnStats');
+  if (colStatsEl && c.headers && c.headers.length) {
+    let colHtml = '<b>📋 Détail par colonne :</b><div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">';
+    
+    // On identifie les colonnes actives du recto et du verso
+    const frontCols = c.front && Array.isArray(c.front) ? c.front : [0];
+    const backCols = c.back && Array.isArray(c.back) ? c.back : [1];
+    const activeCols = [...new Set([...frontCols, ...backCols])];
+
+    // On parcourt TOUTES les colonnes du cours
     c.headers.forEach((header, idx) => {
-      colHtml += `<span style="background:#f0f4f8; padding:3px 6px; border-radius:4px;"><b>${esc(header)}</b> : ${percent}%</span>`;
+      // Si la colonne est active, elle prend le pourcentage global de maîtrise, sinon 0%
+      const isActive = activeCols.includes(idx);
+      const colPercent = isActive ? percent : 0;
+      
+      // On peut ajouter un style visuel légèrement différent pour bien distinguer les colonnes actives des autres
+      const bgStyle = isActive ? 'background:#e2e8f0; border: 1px solid #cbd5e1;' : 'background:#f8fafc; opacity: 0.6;';
+
+      colHtml += `<span style="${bgStyle} padding:3px 6px; border-radius:4px;"><b>${esc(header)}</b> : ${colPercent}%</span>`;
     });
+
     colHtml += '</div>';
     colStatsEl.innerHTML = colHtml;
   }
