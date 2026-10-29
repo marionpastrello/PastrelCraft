@@ -1,641 +1,1113 @@
 <!DOCTYPE html>
+<!--
+  =====================================================================
+  🌿 LearnCraft TDAH — appli de révision ludique (un seul fichier)
+  =====================================================================
+  Comment s'y retrouver :
+    1. <style>   → l'apparence (couleurs, tailles, boutons, modale clé)
+    2. <body>    → les 4 écrans : Réviser, QCM, Cours, IA + la barre du bas + modale Clé IA
+    3. <script>  → le fonctionnement, découpé en sections numérotées :
+         1. Données & sauvegarde      6. Import Google Sheet (lien public)
+         2. Petits outils             7. Google privé (connexion + choix)
+         3. Navigation entre onglets  8. Dossiers, cours, cartes
+         4. Révision (cartes)         9. IA Groq (fiches, astuces, chat)
+         5. QCM                      10. Démarrage
+  Les données et la clé IA restent strictement enregistrées dans le navigateur de l'utilisateur.
+  =====================================================================
+-->
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PastrelCraft 🌿 — Apprentissage Doux & TDAH</title>
-  
-  <!-- 1. CHARGEMENT DES BIBLIOTHÈQUES (CDN) -->
-  <!-- React & React-DOM -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  
-  <!-- Babel -->
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <!-- Tailwind CSS -->
-  <script src="https://cdn.tailwindcss.com"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LearnCraft TDAH</title>
+<!-- Bibliothèques Google : connexion (gsi) + sélecteur de fichiers (api.js) -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://apis.google.com/js/api.js" async defer></script>
 
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+<style>
+/* ---------- 1. Couleurs principales (modifie-les ici) ---------- */
+:root{--p:#2e7d32;--pl:#e8f5e9;--ai:#7b1fa2;--dr:#1565c0;--w:#f57c00;--d:#d32f2f;--bg:#f4f6f8;--t:#333;--b:#e0e0e0}
+*{box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:var(--bg);color:var(--t);margin:0;padding:12px 12px 90px;display:flex;flex-direction:column;align-items:center}
+main{width:100%;max-width:720px}
+h1{color:var(--p);margin:4px 0;font-size:26px;text-align:center}
+h3{margin:0 0 10px;font-size:17px}
+p{line-height:1.5;margin:0 0 10px}.mu{color:#888;font-size:13px}
 
-  <!-- Configuration des polices et styles spécifiques TDAH / Pastel -->
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600&display=swap');
-    body {
-      font-family: 'Lexend', sans-serif;
-      background-color: #fafaf9;
-    }
-  </style>
+/* ---------- Entête & Badge Clé IA ---------- */
+.header-bar{display:flex;justify-content:space-between;align-items:center;width:100%;margin-bottom:8px}
+.key-badge{font-size:12px;padding:4px 10px;border-radius:20px;cursor:pointer;font-weight:600;display:inline-flex;align-items:center;gap:6px;border:1px solid #ccc;background:#fff}
+.key-badge.ok{background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7}
+.key-badge.no{background:#ffebee;color:#c62828;border-color:#ef9a9a}
+
+/* ---------- Boutons ---------- */
+button{background:var(--p);color:#fff;border:0;padding:11px 16px;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;box-shadow:0 2px 5px #0002;transition:transform .1s}
+button:hover{filter:brightness(.92)}button:active{transform:scale(.96)}
+button:disabled{opacity:.5;cursor:wait}
+button.ai{background:var(--ai)}button.dr{background:var(--dr)}button.w{background:var(--w)}button.d{background:var(--d)}button.g{background:#78909c}
+button.big{width:100%;padding:15px;font-size:16px;border-radius:14px}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #1565c055}
+
+/* ---------- Cadres et carte ---------- */
+.box,.card{background:#fff;border-radius:16px;padding:18px;margin-bottom:14px;border:1px solid var(--b)}
+.card{text-align:center;min-height:200px;padding:22px;box-shadow:0 8px 25px #0001}
+.fl{animation:fl .4s}@keyframes fl{50%{transform:rotateY(90deg)}}
+
+/* ---------- Champs de saisie ---------- */
+input[type=text],input[type=password],input[type=number],select,textarea{width:100%;padding:10px;margin:4px 0 10px;border:1px solid #ccc;border-radius:8px;font:inherit;font-size:14px;background:#fff}
+.row{display:flex;gap:10px;align-items:center}.row>*{flex:1}
+.im{max-width:100%;max-height:280px;object-fit:contain;border-radius:12px;margin:8px 0}
+.ln{margin:8px 0;font-size:17px;white-space:pre-line;text-align:left}.ln b{display:block;font-size:12px;color:var(--p)}
+#face.rc .ln{font-size:22px;font-weight:600;text-align:center}
+
+/* ---------- Barre de progression, stats, astuce ---------- */
+.bar{height:10px;background:#dde3e8;border-radius:6px;margin-bottom:12px;overflow:hidden}.bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#81c784,#2e7d32);transition:width .4s}
+.stats{text-align:center;margin:4px 0 10px;font-weight:700;color:var(--w);font-size:14px}
+.mn{background:#f3e5f5;border-left:4px solid var(--ai);padding:12px;border-radius:8px;margin-top:10px;text-align:left;display:none;white-space:pre-line;color:#4a148c;font-size:14px}
+
+/* ---------- QCM ---------- */
+.opt{display:block;width:100%;text-align:left;background:#f8f9fa;color:var(--t);border:1px solid #ccd0d5;margin-top:10px;font-weight:500;font-size:15px;box-shadow:none}
+.opt.ok{background:#c8e6c9;border-color:var(--p)}.opt.ko{background:#ffcdd2;border-color:var(--d)}
+
+/* ---------- Écran Cours ---------- */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid2 label{display:block;background:#fafafa;padding:8px;border-radius:8px;margin-top:6px;font-size:13px}
+.ci{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:8px;border:1px solid var(--b);border-radius:8px;margin-top:6px;font-size:13px}
+.ci select{width:auto;margin:0;padding:4px}.ci button{padding:5px 9px;font-size:12px}
+.ts{max-height:260px;overflow:auto;border:1px solid var(--b);border-radius:8px}
+table{border-collapse:collapse;min-width:520px;width:100%;font-size:12px}th,td{border:1px solid var(--b);padding:6px;text-align:left;vertical-align:top;white-space:pre-line}th{background:#f5f5f5;position:sticky;top:0}
+
+/* ---------- Chat IA ---------- */
+.chat{background:#fafafa;border:1px solid var(--b);border-radius:12px;padding:10px;max-height:240px;overflow:auto;margin-bottom:10px;font-size:14px}.chat div{margin:6px 0;white-space:pre-wrap}
+
+/* ---------- Barre du bas ---------- */
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;justify-content:center;gap:4px;padding:8px;border-top:1px solid var(--b);z-index:5}
+nav button{background:none;color:#666;box-shadow:none;flex:1;max-width:170px;font-size:12px;padding:8px}
+nav button.on{background:var(--pl);color:var(--p)}
+
+/* ---------- Fenêtre Modale (Saisie rapide Clé IA) ---------- */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+.modal-card{background:#fff;border-radius:20px;padding:24px;max-width:480px;width:100%;box-shadow:0 10px 30px rgba(0,0,0,0.2)}
+
+/* ---------- Message flottant + confettis ---------- */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#323232;color:#fff;padding:10px 18px;border-radius:20px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .3s;z-index:9;max-width:90%;text-align:center}
+#cf{position:fixed;inset:0;pointer-events:none;z-index:8}
+.hide{display:none!important}
+@media(max-width:520px){.grid2{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){.fl{animation:none}}
+</style>
 </head>
-<body class="text-stone-700 min-h-screen">
 
-  <div id="root"></div>
+<body>
+<main>
+  <!-- En-tête simplifié avec juste l'XP et la clé IA -->
+  <div class="header-bar">
+    <div id="statsXp" style="font-size:13px; font-weight:600;">⭐ 0 XP · 🔥 série 0</div>
+    <div id="keyBadge" class="key-badge no" onclick="openKeyModal()">🔑 Clé IA : Non configurée</div>
+  </div>
 
-  <!-- 2. CODE REACT / JAVASCRIPT DE PASTRELCRAFT -->
-  <script type="text/babel">
-    const { useState, useEffect } = React;
+  <h1>🌿 LearnCraft</h1>
+  <!-- Choix du cours actif (utilisé par tous les onglets) -->
+  <select id="courseSel" onchange="setActive(this.value)" aria-label="Cours actif"></select>
 
-    function PastrelCraft() {
-      // ----------------------------------------
-      // A. ÉTATS (STATE)
-      // ----------------------------------------
-      const [activeTab, setActiveTab] = useState('study-cards');
-      const [apiKey, setApiKey] = useState(() => localStorage.getItem('pastrelcraft_gemini_key') || '');
-      const [xp, setXp] = useState(() => Number(localStorage.getItem('pastrelcraft_xp')) || 0);
-      const [streak, setStreak] = useState(() => Number(localStorage.getItem('pastrelcraft_streak')) || 0);
-      const [hideDistractions, setHideDistractions] = useState(false);
+  <!-- ================= ÉCRAN 1 : RÉVISER ================= -->
+  <section id="tab-rev" class="tab-content">
+    <div class="bar"><i id="revBar"></i></div>
+    <div class="card" id="face"></div>
+    <button class="big" id="btnFlip" onclick="flipCard()">👀 Retourner la carte</button>
+    <div class="row hide" id="answerBtns">
+      <button class="d big" onclick="answerCard(false)">❌ À revoir</button>
+      <button class="big" onclick="answerCard(true)">✅ Je savais</button>
+    </div>
+    <p></p>
+    <!-- NOUVEAU : Bouton pour basculer directement vers le QCM -->
+    <div class="row" style="margin-top:10px;">
+      <button class="ai" id="btnMn" style="flex:1;" onclick="mnemonic()">💡 Astuce IA</button>
+      <button class="w" style="flex:1;" onclick="switchToQcmForCurrentCard()">❓ Mode QCM </button>
+    </div>
+    <button class="ai big" id="btnMn" onclick="mnemonic()">💡 Moyen mnémotechnique IA</button>
+    <div class="mn" id="mn"></div>
+  </section>
 
-      const [decks, setDecks] = useState([
-        {
-          id: 'demo-botanique',
-          title: 'Botanique & Phytothérapie',
-          description: 'Plantes médicinales, principes actifs et propriétés.',
-          cards: [
-            { id: 'c1', question: 'Quelle est la propriété majeure du Millepertuis (Hypericum perforatum) ?', answer: 'Antidépresseur léger à modéré, anxiolytique (Attention aux interactions CYP3A4).', image: '', status: 'new', reviewCount: 0 },
-            { id: 'c2', question: 'Quel principe actif donne la couleur jaune/orange au Curcuma ?', answer: 'Les curcuminoïdes (puissants antioxydants et anti-inflammatoires).', image: '', status: 'new', reviewCount: 0 },
-            { id: 'c3', question: 'Quelle est la différence entre une tisane et une décoction ?', answer: 'L infusion consiste à verser l eau bouillante sur les parties tendres (fleurs/feuilles). La décoction fait bouillir les parties dures (racines/écorces).', image: '', status: 'new', reviewCount: 0 }
-          ]
-        }
-      ]);
-      const [selectedDeckId, setSelectedDeckId] = useState('demo-botanique');
+  <!-- ================= ÉCRAN 2 : QCM ================= -->
+  <section id="tab-qcm" class="tab-content hide">
+    <div class="card" id="qcmBox"></div>
+    <button class="big hide" id="btnNext" onclick="newQuestion()">Question suivante ➡️</button>
+  </section>
 
-      const [currentCardIndex, setCurrentCardIndex] = useState(0);
-      const [isFlipped, setIsFlipped] = useState(false);
+  <!-- ================= ÉCRAN 3 : COURS ================= -->
+  <section id="tab-cours" class="tab-content hide">
+    <div class="box">
+      <h3>🎛️ Recto / Verso : <span id="rvName"></span></h3>
+      <p class="mu">Choisis ce qui s'affiche sur chaque face.</p>
+      <div class="grid2">
+        <div><b>📤 Recto</b><div id="rvFront"></div></div>
+        <div><b>📥 Verso</b><div id="rvBack"></div></div>
+      </div>
+    </div>
 
-      const [instantQuiz, setInstantQuiz] = useState(null);
-      const [instantQuizLoading, setInstantQuizLoading] = useState(false);
+    <div class="box">
+      <h3>📁 Importer un tableau</h3>
+      <label>Dossier de destination</label>
+      <select id="destFolder"></select>
+      <label>Lien d'un Google Sheet public</label>
+      <input type="text" id="sheetLink" placeholder="https://docs.google.com/spreadsheets/d/...">
+      <button onclick="importPublicSheet()">📥 Importer depuis le lien</button>
+    </div>
 
-      const [sheetUrl, setSheetUrl] = useState('');
-      const [sheetLoading, setSheetLoading] = useState(false);
-      const [sheetError, setSheetError] = useState('');
-      const [sheetHeaders, setSheetHeaders] = useState([]);
-      const [sheetRows, setSheetRows] = useState([]);
-      const [selectedRectoCol, setSelectedRectoCol] = useState(0);
-      const [selectedVersoCol, setSelectedVersoCol] = useState(1);
-      const [selectedImgCol, setSelectedImgCol] = useState(-1);
+    <div class="box">
+      <h3>☁️ Compte Google</h3>
+      <p class="mu">Connecte-toi avec ton compte Google pour synchroniser automatiquement ta bibliothèque de cours dans ton Drive personnel.</p>
+      <div class="row">
+        <button class="dr big" onclick="googleLogin()">👤 Se connecter avec mon compte Google</button>
+      </div>
+      <p class="mu" id="gStatus" style="margin-top:10px;">Non connecté.</p>
+      <p class="mu" id="libraryStatus" role="status">Bibliothèque Drive non connectée.</p>
+      <div class="row" style="margin-top:10px;">
+        <button class="dr" onclick="saveLibrary(true)">☁️ Enregistrer la bibliothèque</button>
+        <button class="dr" onclick="restoreLibrary()">📥 Récupérer la bibliothèque</button>
+      </div>
+      <label style="margin-top:12px;display:block;">…ou colle le lien d'un de tes Sheets privés (après connexion)</label>
+      <div class="row">
+        <input type="text" id="privLink" placeholder="https://docs.google.com/spreadsheets/d/...">
+        <button class="dr" style="flex:0 0 auto" onclick="importPrivateLink()">📥</button>
+      </div>
+      <!-- Crée un DOSSIER : chaque onglet du Sheet devient un cours -->
+      <button class="dr big" style="margin-top:8px;" onclick="importFolderFromLink()">📁 Créer un dossier depuis ce lien (1 cours par onglet)</button>
+    </div>
 
-      const currentDeck = decks.find(d => d.id === selectedDeckId) || decks[0];
+    <div class="box">
+      <h3>✍️ Ajouter une carte au cours actif</h3>
+      <input type="text" id="addFront" placeholder="Recto">
+      <input type="text" id="addBack" placeholder="Verso">
+      <button onclick="addCard()">➕ Ajouter</button>
+    </div>
 
-      // ----------------------------------------
-      // B. FONCTIONS AUXILIAIRES & GAINS D'XP
-      // ----------------------------------------
-      const playSound = (isGood) => {
-        try {
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.frequency.value = isGood ? 523.25 : 220;
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          gain.gain.setValueAtTime(0.1, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.3);
-        } catch (e) {}
-      };
+    <div class="box">
+      <h3>📂 Dossiers & cours</h3>
+      <div class="row">
+        <input type="text" id="newFolder" placeholder="Nouveau dossier">
+        <button style="flex:0 0 auto" onclick="createFolder()">➕ Créer</button>
+      </div>
+      <div class="row">
+        <input type="text" id="newCourse" placeholder="Nouveau cours (dans le dossier de destination)">
+        <button style="flex:0 0 auto" onclick="createCourse()">➕ Créer</button>
+      </div>
+      <div id="courseList"></div>
+    </div>
 
-      const addReward = (isGood) => {
-        playSound(isGood);
-        if (isGood) {
-          const newXp = xp + 10;
-          const newStreak = streak + 1;
-          setXp(newXp);
-          setStreak(newStreak);
-          localStorage.setItem('pastrelcraft_xp', newXp.toString());
-          localStorage.setItem('pastrelcraft_streak', newStreak.toString());
-        } else {
-          setStreak(0);
-          localStorage.setItem('pastrelcraft_streak', '0');
-        }
-      };
+    <div class="box">
+      <h3>📋 Aperçu du cours actif</h3>
+      <div class="ts" id="preview"></div>
+    </div>
 
-      // ----------------------------------------
-      // C. PARSER & IMPORTATION GOOGLE SHEET
-      // ----------------------------------------
-      const parseCSVLine = (line) => {
-        let result = [], cur = '', inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const char = line[i];
-          if (char === '"') inQuotes = !inQuotes;
-          else if (char === ',' && !inQuotes) { result.push(cur.trim()); cur = ''; }
-          else cur += char;
-        }
-        result.push(cur.trim());
-        return result;
-      };
+    <div class="box">
+      <label><input type="checkbox" id="soundOn" onchange="toggleSound(this.checked)"> 🔊 Sons de récompense</label>
+    </div>
+    <!-- Bouton de synchronisation : relit tous tes Sheets importés -->
+    <div class="box">
+      <button class="big" onclick="syncWithSheet()">🔄 Synchroniser mes Sheets</button>
+    </div>
+  </section>
 
-      const handleAnalyzeSheet = async (e) => {
-        e.preventDefault();
-        if (!sheetUrl.trim()) return;
-        setSheetLoading(true);
-        setSheetError('');
+  <!-- ================= ÉCRAN 4 : IA ================= -->
+  <section id="tab-ia" class="tab-content hide">
+    <div class="box" style="border-left: 4px solid var(--ai);">
+      <h3>🤖 Configuration de l'Assistant IA</h3>
+      <p class="mu">Pour générer des cours ou utiliser le tuteur IA, chaque utilisateur saisit sa propre clé API gratuite Groq.</p>
+      <button class="ai" onclick="openKeyModal()">⚙️ Configurer / Modifier ma clé IA</button>
+    </div>
+    <div class="box">
+      <h3>✨ Générer un cours</h3>
+      <input type="text" id="genTopic" placeholder="Sujet (ex : la Révolution française)">
+      <input type="number" id="genCount" value="10" min="3" max="40">
+      <button class="ai big" id="btnGen" onclick="generateCourse()">🤖 Générer les fiches</button>
+    </div>
+    <div class="box">
+      <h3>💬 Question sur le cours actif</h3>
+      <div class="chat" id="chat"><div>🤖 Pose-moi une question sur tes fiches !</div></div>
+      <div class="row">
+        <input type="text" id="chatInput" placeholder="Ta question…" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="ai" style="flex:0 0 auto" onclick="sendChat()">Envoyer</button>
+      </div>
+    </div>
+  </section>
 
-        try {
-          const matches = sheetUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
-          if (!matches || !matches[1]) throw new Error("Impossible de lire l'URL du Google Sheet. Assurez-vous qu'il est partagé en public.");
-          
-          const docId = matches[1];
-          const gidMatch = sheetUrl.match(/[?&]gid=(\d+)/);
-          const gidParam = gidMatch ? `&gid=${gidMatch[1]}` : '';
-          const csvUrl = `https://docs.google.com/spreadsheets/d/${docId}/export?format=csv${gidParam}`;
-
-          const res = await fetch(csvUrl);
-          if (!res.ok) throw new Error("Impossible de télécharger le fichier. Vérifiez les accès de partage.");
-          const text = await res.text();
-          const lines = text.split('\n').filter(line => line.trim() !== '');
-
-          if (lines.length < 2) throw new Error("Le tableau ne contient pas assez de données.");
-
-          const headers = parseCSVLine(lines[0]);
-          setSheetHeaders(headers);
-          setSheetRows(lines.slice(1));
-
-          const headersLower = headers.map(h => h.toLowerCase());
-          const qIdx = headersLower.findIndex(h => h.includes('question') || h.includes('recto') || h.includes('q'));
-          const aIdx = headersLower.findIndex(h => h.includes('reponse') || h.includes('réponse') || h.includes('verso') || h.includes('r'));
-          const imgIdx = headersLower.findIndex(h => h.includes('image') || h.includes('photo'));
-
-          setSelectedRectoCol(qIdx !== -1 ? qIdx : 0);
-          setSelectedVersoCol(aIdx !== -1 ? aIdx : (headers.length > 1 ? 1 : 0));
-          setSelectedImgCol(imgIdx);
-
-        } catch (err) {
-          setSheetError(err.message);
-        } finally {
-          setSheetLoading(false);
-        }
-      };
-
-      const handleConfirmImport = () => {
-        if (!sheetRows.length) return;
-        const importedCards = [];
-
-        for (let i = 0; i < sheetRows.length; i++) {
-          const cols = parseCSVLine(sheetRows[i]);
-          const rectoVal = cols[selectedRectoCol]?.replace(/^"|"$/g, '') || '';
-          const versoVal = cols[selectedVersoCol]?.replace(/^"|"$/g, '') || '';
-          const imgVal = selectedImgCol >= 0 ? cols[selectedImgCol]?.replace(/^"|"$/g, '') : '';
-
-          if (rectoVal && versoVal) {
-            importedCards.push({
-              id: `sheet_c_${Date.now()}_${i}`,
-              question: rectoVal,
-              answer: versoVal,
-              image: imgVal,
-              status: 'new',
-              reviewCount: 0
-            });
-          }
-        }
-
-        if (importedCards.length === 0) {
-          setSheetError("Aucune carte n'a pu être créée à partir des colonnes choisies.");
-          return;
-        }
-
-        const updatedDecks = decks.map(deck => {
-          if (deck.id === selectedDeckId) {
-            return { ...deck, cards: [...deck.cards, ...importedCards] };
-          }
-          return deck;
-        });
-
-        setDecks(updatedDecks);
-        setSheetUrl('');
-        setSheetHeaders([]);
-        setSheetRows([]);
-        setActiveTab('study-cards');
-      };
-
-      // ----------------------------------------
-      // D. CALCULS DES STATISTIQUES & PROGRESSION
-      // ----------------------------------------
-      const totalCards = currentDeck ? currentDeck.cards.length : 0;
-      const cardsSeen = currentDeck ? currentDeck.cards.filter(c => c.status !== 'new').length : 0;
-      const cardsMastered = currentDeck ? currentDeck.cards.filter(c => c.status === 'mastered').length : 0;
+ <!-- ================= ÉCRAN 5 : STATISTIQUES ================= -->
+  <section id="tab-stats" class="tab-content hide">
+    <div class="box" style="padding:16px;">
+      <h3 style="margin-top:0; margin-bottom:12px;">📊 Progression & Statistiques</h3>
       
-      const percentSeen = totalCards > 0 ? Math.round((cardsSeen / totalCards) * 100) : 0;
-      const percentMastered = totalCards > 0 ? Math.round((cardsMastered / totalCards) * 100) : 0;
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px; font-weight:600;">
+        <span>Maitrise globale du cours :</span>
+        <span id="statsProgress" style="color:var(--p);">0 %</span>
+      </div>
+      
+      <div class="bar" style="margin:10px 0 14px;"><i id="overallBar"></i></div>
+      
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; text-align:center; font-size:13px; font-weight:bold; margin-bottom:16px;">
+        <div style="background:#e8f5e9; color:#2e7d32; padding:10px; border-radius:8px;" id="statAcquired">✅ Su : 0</div>
+        <div style="background:#fff3e0; color:#e65100; padding:10px; border-radius:8px;" id="statReview">❌ À revoir : 0</div>
+        <div style="background:#f5f5f5; color:#616161; padding:10px; border-radius:8px;" id="statUnseen">⏳ Non vu : 0</div>
+      </div>
 
-      const handleUpdateCardStatus = (cardId, masteryLevel) => {
-        const isGood = masteryLevel === 'easy';
-        addReward(isGood);
+      <div id="columnStats" style="font-size:13px; color:#444; border-top:1px solid #eee; padding-top:12px;"></div>
+    </div>
+  </section>
+</main>
 
-        const updatedDecks = decks.map(deck => {
-          if (deck.id === selectedDeckId) {
-            const updatedCards = deck.cards.map(card => {
-              if (card.id === cardId) {
-                let newStatus = 'reviewing';
-                if (masteryLevel === 'easy') newStatus = 'mastered';
-                if (masteryLevel === 'hard') newStatus = 'hard';
-                return { ...card, reviewCount: (card.reviewCount || 0) + 1, status: newStatus };
-              }
-              return card;
-            });
-            return { ...deck, cards: updatedCards };
-          }
-          return deck;
-        });
+<!-- FENÊTRE MODALE : SAISIE FACILE DE LA CLÉ GROQ -->
+<div id="keyModal" class="modal-overlay hide">
+  <div class="modal-card">
+    <h3 style="color:var(--ai);">🔑 Ta clé API Groq</h3>
+    <p style="font-size:13px; color:#555;">
+      L'IA utilise <strong>Groq</strong> (un service 100% gratuit). Pour l'activer sur ton téléphone / ordi :
+    </p>
+    <ol style="font-size:13px; color:#555; padding-left:20px; margin-bottom:15px;">
+      <li>Crée un compte gratuit sur <a href="https://console.groq.com/keys" target="_blank" style="color:var(--ai);font-weight:bold;">console.groq.com</a>.</li>
+      <li>Clique sur <strong>Create API Key</strong> et copie ton code (commence par <code>gsk_...</code>).</li>
+      <li>Colle-le ci-dessous. Il restera enregistré dans ton navigateur.</li>
+    </ol>
+    <input type="password" id="modalGroqKey" placeholder="gsk_..." style="font-size:15px; padding:12px;">
+    <div class="row" style="margin-top:10px;">
+      <button class="g" onclick="closeKeyModal()">Annuler</button>
+      <button class="ai" onclick="saveModalKey()">Enregistrer</button>
+    </div>
+  </div>
+</div>
 
-        setDecks(updatedDecks);
+<!-- Barre de navigation du bas homogène -->
+<nav>
+  <button data-tab="rev" class="on" onclick="showTab('rev')">🎴<br>Réviser</button>
+  <button data-tab="qcm" onclick="showTab('qcm')">❓<br>QCM</button>
+  <button data-tab="cours" onclick="showTab('cours')">📚<br>Cours</button>
+  <button data-tab="ia" onclick="showTab('ia')">🤖<br>IA</button>
+  <button data-tab="stats" onclick="showTab('stats')">📊<br>Stats</button>
+</nav>
+<div id="toast"></div>
+<canvas id="cf"></canvas>
 
-        if (currentCardIndex < currentDeck.cards.length - 1) {
-          setCurrentCardIndex(prev => prev + 1);
-          setIsFlipped(false);
-          setInstantQuiz(null);
-        }
-      };
+<script>
 
-      const handleGenerateInstantQuiz = async () => {
-        const currentCard = currentDeck.cards[currentCardIndex];
-        if (!currentCard) return;
+/* =====================================================================
+   1. DONNÉES & SAUVEGARDE
+   ===================================================================== */
+const SAVE_KEY = 'learncraft-data';
+let data = load();
 
-        setInstantQuizLoading(true);
-        setInstantQuiz(null);
+function load() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (saved && saved.courses) return saved;
+  } catch (e) {}
+  const folder = { id: newId(), name: 'Général' };
+  const course = {
+    id: newId(), folderId: folder.id, name: 'Capitales (exemple)',
+    headers: ['Pays', 'Capitale'],
+    rows: [['France','Paris'],['Japon','Tokyo'],['Canada','Ottawa'],['Australie','Canberra'],['Brésil','Brasília']],
+    front: [0], back: [1]
+  };
+  return { folders: [folder], courses: [course], activeId: course.id, xp: 0, streak: 0, sound: true, groqKey: '' };
+}
+function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) {} scheduleLibrarySave(); }
 
-        if (apiKey) {
-          try {
-            const prompt = `Génère 3 fausses réponses (distracteurs) crédibles mais distinctes pour la question suivante : "${currentCard.question}". Bonne réponse : "${currentCard.answer}". Envoie un JSON au format strict : { "distractors": ["fausse1", "fausse2", "fausse3"] }`;
-            const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-preview:generateContent?key=${apiKey}`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-            });
+/* =====================================================================
+   MODALE CLÉ IA SIMPLIFIÉE
+   ===================================================================== */
+function updateKeyBadge() {
+  const badge = $('keyBadge');
+  if (data.groqKey && data.groqKey.startsWith('gsk_')) {
+    badge.className = 'key-badge ok';
+    badge.textContent = '🔑 Clé IA : Active';
+  } else {
+    badge.className = 'key-badge no';
+    badge.textContent = '🔑 Clé IA : Non configurée';
+  }
+}
+function openKeyModal() {
+  $('modalGroqKey').value = data.groqKey || '';
+  $('keyModal').classList.remove('hide');
+}
+function closeKeyModal() { $('keyModal').classList.add('hide'); }
+function saveModalKey() {
+  const val = $('modalGroqKey').value.trim();
+  data.groqKey = val;
+  save();
+  updateKeyBadge();
+  closeKeyModal();
+  toast(val ? 'Clé IA enregistrée avec succès ! ✅' : 'Clé supprimée');
+}
 
-            const data = await res.json();
-            const rawText = data.candidates[0].content.parts[0].text;
-            const parsed = JSON.parse(rawText.replace(/```json|```/g, ''));
-            
-            const allOpts = [currentCard.answer, ...parsed.distractors.slice(0, 3)];
-            const shuffled = allOpts.sort(() => Math.random() - 0.5);
+// Bibliothèque privée
+const LIBRARY_NAME = 'learncraft-bibliotheque-v1.json';
+const LIBRARY_BASE_KEY = 'learncraft-drive-base-v1';
+let libraryFileId = null, libraryAccount = null, libraryBase = null;
+let libraryReady = false, libraryBusy = false, libraryTimer = null;
 
-            setInstantQuiz({
-              cardId: currentCard.id,
-              question: currentCard.question,
-              correctAnswer: currentCard.answer,
-              options: shuffled,
-              selected: null,
-              submitted: false
-            });
-          } catch (e) {
-            console.error(e);
-            generateFallbackQuiz(currentCard);
-          } finally {
-            setInstantQuizLoading(false);
-          }
-        } else {
-          generateFallbackQuiz(currentCard);
-          setInstantQuizLoading(false);
-        }
-      };
-
-      const generateFallbackQuiz = (card) => {
-        const otherAnswers = currentDeck.cards.filter(c => c.id !== card.id).map(c => c.answer);
-        const distractors = [];
-        while (distractors.length < 3 && otherAnswers.length > 0) {
-          const randIdx = Math.floor(Math.random() * otherAnswers.length);
-          distractors.push(otherAnswers.splice(randIdx, 1)[0]);
-        }
-        const options = [card.answer, ...distractors].sort(() => Math.random() - 0.5);
-        setInstantQuiz({
-          cardId: card.id,
-          question: card.question,
-          correctAnswer: card.answer,
-          options,
-          selected: null,
-          submitted: false
-        });
-      };
-
-      useEffect(() => {
-        if (window.lucide) window.lucide.createIcons();
+function librarySnapshot() {
+  return {
+    version: 1,
+    xp: data.xp || 0,
+    streak: data.streak || 0,
+    folders: data.folders.map(f => ({ id: f.id, name: f.name })),
+    courses: data.courses.map(c => {
+      const copy = {};
+      // On ajoute 'mastered' et 'failed' dans les propriétés sauvegardées vers Google Drive
+      ['id', 'folderId', 'name', 'headers', 'rows', 'front', 'back', 'sheetId', 'gid', 'tab', 'mastered', 'failed'].forEach(k => {
+        if (c[k] !== undefined) copy[k] = c[k];
       });
+      return copy;
+    })
+  };
+}
 
-      // ----------------------------------------
-      // E. RENDU DE L'INTERFACE UTILISATEUR (JSX)
-      // ----------------------------------------
-      return (
-        <div class="max-w-3xl mx-auto px-4 py-6">
-          
-          {/* EN-TÊTE : Titre + Récompenses XP + Mode Zen */}
-          {!hideDistractions && (
-            <header class="flex flex-wrap items-center justify-between gap-4 mb-6 bg-white p-4 rounded-2xl shadow-sm border border-stone-200">
-              <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xl">
-                  🌿
-                </div>
-                <div>
-                  <h1 class="text-xl font-bold text-stone-800">PastrelCraft</h1>
-                  <p class="text-xs text-stone-500">Apprentissage doux & sur-mesure</p>
-                </div>
-              </div>
+function libraryText() { return JSON.stringify(librarySnapshot()); }
+function validateLibrary(value) {
+  const validId = v => typeof v === 'string' && /^[a-zA-Z0-9_-]+$/.test(v);
+  const strings = a => Array.isArray(a) && a.every(v => typeof v === 'string');
+  if (!value || value.version !== 1 || !Array.isArray(value.folders) || !Array.isArray(value.courses)) throw new Error('Bibliothèque non reconnue');
+  const ids = new Set();
+  value.folders.forEach(f => {
+    if (!f || !validId(f.id) || ids.has(f.id) || typeof f.name !== 'string') throw new Error('Dossier invalide');
+    ids.add(f.id);
+  });
+  const courseIds = new Set();
+  value.courses.forEach(c => {
+    if (!c || !validId(c.id) || courseIds.has(c.id) || !ids.has(c.folderId) || typeof c.name !== 'string' || !strings(c.headers) || !c.headers.length || !Array.isArray(c.rows) || !c.rows.every(strings)) throw new Error('Cours invalide');
+    ['front', 'back'].forEach(k => {
+      if (!Array.isArray(c[k]) || !c[k].length || !c[k].every(i => Number.isInteger(i) && i >= 0 && i < c.headers.length)) throw new Error('Recto / verso invalide');
+    });
+    if (c.sheetId !== undefined && !validId(c.sheetId)) throw new Error('Lien Sheet invalide');
+    if (c.gid !== undefined && !/^\d+$/.test(String(c.gid))) throw new Error('Onglet invalide');
+    if (c.tab !== undefined && typeof c.tab !== 'string') throw new Error('Onglet invalide');
+    courseIds.add(c.id);
+  });
+  return value;
+}
+function libraryStatus(text) { $('libraryStatus').textContent = text; }
+async function driveRequest(path, options = {}) {
+  const res = await fetch('https://www.googleapis.com/' + path, {
+    ...options, cache: 'no-store',
+    headers: { ...options.headers, Authorization: 'Bearer ' + gToken }
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    let message = body;
+    try { message = JSON.parse(body).error?.message || body; } catch (e) {}
+    if (res.status === 401) { libraryReady = false; gToken = null; message = 'Reconnecte-toi à Google'; }
+    throw new Error('Google (' + res.status + ') : ' + message);
+  }
+  return res.status === 204 ? null : res.json();
+}
+function rememberLibraryBase(text) {
+  libraryBase = text;
+  try { localStorage.setItem(LIBRARY_BASE_KEY, JSON.stringify({ account: libraryAccount, text })); } catch (e) {}
+}
+function applyLibrary(value) {
+  validateLibrary(value);
+  try { localStorage.setItem('learncraft-before-drive', JSON.stringify(data)); } catch (e) {}
+  data.folders = value.folders.map(f => ({ id: f.id, name: f.name }));
+  data.courses = value.courses.map(c => {
+    const copy = {};
+    ['id', 'folderId', 'name', 'headers', 'rows', 'front', 'back', 'sheetId', 'gid', 'tab'].forEach(k => { if (c[k] !== undefined) copy[k] = c[k]; });
+    return copy;
+  });
+  if (!data.courses.some(c => c.id === data.activeId)) data.activeId = data.courses[0]?.id || null;
+  rememberLibraryBase(libraryText());
+  save(); renderAll();
+}
+async function readDriveLibrary() {
+  return validateLibrary(await driveRequest('drive/v3/files/' + libraryFileId + '?alt=media'));
+}
+async function createDriveLibrary(text) {
+  const boundary = 'learncraft_' + newId();
+  const metadata = { name: LIBRARY_NAME, parents: ['appDataFolder'], mimeType: 'application/json' };
+  const body = '--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata) + '\r\n--' + boundary + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + text + '\r\n--' + boundary + '--';
+  const result = await driveRequest('upload/drive/v3/files?uploadType=multipart&fields=id', {
+    method: 'POST', headers: { 'Content-Type': 'multipart/related; boundary=' + boundary }, body
+  });
+  libraryFileId = result.id;
+  rememberLibraryBase(text);
+}
+async function connectLibrary() {
+  libraryReady = false; clearTimeout(libraryTimer);
+  libraryStatus('Connexion à ta bibliothèque…');
+  try {
+    const account = await driveRequest('drive/v3/about?fields=user(permissionId)');
+    libraryAccount = account.user?.permissionId;
+    if (!libraryAccount) throw new Error('Compte Google non reconnu');
+    let previous = null;
+    try { previous = JSON.parse(localStorage.getItem(LIBRARY_BASE_KEY)); } catch (e) {}
+    libraryBase = previous?.account === libraryAccount ? previous.text : null;
+    const files = await driveRequest('drive/v3/files?spaces=appDataFolder&q=' + encodeURIComponent("name = '" + LIBRARY_NAME + "' and trashed = false") + '&fields=files(id),nextPageToken&pageSize=100');
+    if (files.files.length > 1 || files.nextPageToken) throw new Error('Plusieurs bibliothèques trouvées : aucune n’a été remplacée');
+    libraryFileId = files.files[0]?.id || null;
+    if (previous?.account && previous.account !== libraryAccount) {
+      if (!confirm('Tu utilises un autre compte Google. Charger sa bibliothèque ? Tes cours actuels resteront dans une copie de secours sur cet appareil.')) throw new Error('Changement de compte annulé : aucune sauvegarde envoyée');
+      if (!libraryFileId) throw new Error('Ce compte n’a pas encore de bibliothèque. Aucune donnée transférée entre comptes.');
+      applyLibrary(await readDriveLibrary());
+    } else if (!libraryFileId) {
+      await createDriveLibrary(libraryText());
+    } else {
+      const remote = await readDriveLibrary(), remoteText = JSON.stringify(remote), local = libraryText();
+      const exampleOnly = data.courses.length === 1 && data.courses[0].name === 'Capitales (exemple)' && data.folders.length === 1 && data.courses[0].rows.length === 5 && JSON.stringify(data.courses[0].rows) === JSON.stringify([['France','Paris'],['Japon','Tokyo'],['Canada','Ottawa'],['Australie','Canberra'],['Brésil','Brasília']]);
+      if (local === remoteText || exampleOnly || local === libraryBase || !data.courses.length) {
+        applyLibrary(remote);
+      } else if (libraryBase && remoteText === libraryBase) {
+        libraryReady = true;
+        await saveLibrary();
+        if (!libraryReady) return false;
+      } else {
+        libraryStatus('Deux versions différentes. Choisis « Récupérer » ou « Enregistrer » ; aucune donnée remplacée.');
+        return false;
+      }
+    }
+    libraryReady = true;
+    libraryStatus('✅ Bibliothèque reliée à Google Drive');
+    scheduleLibrarySave();
+    return true;
+  } catch (e) { libraryAccount = null; libraryStatus('⚠️ ' + e.message); return false; }
+}
+function scheduleLibrarySave() {
+  clearTimeout(libraryTimer);
+  if (!libraryReady || !gToken || libraryText() === libraryBase) return;
+  libraryTimer = setTimeout(() => saveLibrary(), 1200);
+}
+async function saveLibrary(manual = false) {
+  if (!gToken || !libraryAccount) return libraryStatus('Connecte-toi à Google pour enregistrer ta bibliothèque');
+  if (libraryBusy) return libraryStatus('Un enregistrement est déjà en cours ; réessaie ensuite');
+  if (!libraryReady && !manual) return;
+  clearTimeout(libraryTimer); libraryBusy = true;
+  libraryStatus('Enregistrement de la bibliothèque…');
+  try {
+    const text = libraryText();
+    validateLibrary(JSON.parse(text));
+    if (!libraryFileId) throw new Error('Reconnecte-toi à Google avant de créer la bibliothèque');
+    const remoteText = JSON.stringify(await readDriveLibrary());
+    if (remoteText !== libraryBase && remoteText !== text) {
+      libraryReady = false;
+      if (!manual || !confirm('La bibliothèque Drive diffère de celle de cet appareil. Remplacer celle de Drive par les cours affichés ici ? Les suppressions seront aussi transmises.')) {
+        libraryStatus('⚠️ Autre version dans Drive : aucune donnée écrasée. Récupère-la ou confirme un enregistrement.'); return;
+      }
+    }
+    await driveRequest('upload/drive/v3/files/' + libraryFileId + '?uploadType=media&fields=id', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json; charset=UTF-8' }, body: text
+    });
+    rememberLibraryBase(text); libraryReady = true;
+    libraryStatus('✅ Bibliothèque enregistrée dans Google Drive');
+  } catch (e) { libraryReady = false; libraryStatus('⚠️ Non enregistré : ' + e.message); }
+  finally { libraryBusy = false; scheduleLibrarySave(); }
+}
+async function restoreLibrary() {
+  if (!gToken || !libraryFileId) return libraryStatus('Connecte-toi à Google pour récupérer ta bibliothèque');
+  if (libraryBusy) return libraryStatus('Attends la fin de l’enregistrement');
+  if (!confirm('Récupérer les cours de Drive à la place de ceux affichés sur cet appareil ? Une copie de secours locale sera conservée.')) return;
+  clearTimeout(libraryTimer); libraryBusy = true; libraryReady = false;
+  try {
+    applyLibrary(await readDriveLibrary()); libraryReady = true;
+    await syncAllSheets(true);
+    libraryStatus('✅ Bibliothèque récupérée depuis Google Drive');
+  } catch (e) { libraryStatus('⚠️ ' + e.message); }
+  finally { libraryBusy = false; scheduleLibrarySave(); }
+}
 
-              {/* Badges de Gamification TDAH */}
-              <div class="flex items-center gap-3">
-                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full text-xs font-semibold border border-amber-200">
-                  ⚡ <span>{xp} XP</span>
-                </div>
-                <div class="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-rose-700 rounded-full text-xs font-semibold border border-rose-200">
-                  🔥 <span>{streak} d affilée</span>
-                </div>
-                <button 
-                  onClick={() => setHideDistractions(true)} 
-                  class="px-3 py-1.5 bg-stone-100 hover:bg-stone-200 text-stone-600 rounded-full text-xs transition-colors"
-                  title="Activer le mode Zen sans distraction"
-                >
-                  🧘 Mode Zen
-                </button>
-              </div>
-            </header>
-          )}
+function activeCourse() { return data.courses.find(c => c.id === data.activeId) || null; }
 
-          {/* Bouton pour quitter le mode Zen */}
-          {hideDistractions && (
-            <div class="flex justify-end mb-4">
-              <button 
-                onClick={() => setHideDistractions(false)}
-                class="px-3 py-1 bg-white border border-stone-200 text-stone-600 rounded-full text-xs shadow-sm hover:bg-stone-50"
-              >
-                👁️ Revenir au mode normal
-              </button>
-            </div>
-          )}
+async function syncAllSheets(silent) {
+  const linked = data.courses.filter(c => c.sheetId);
+  if (!linked.length) {
+    if (!silent) toast('⚠️ Aucun cours lié à un Sheet');
+    return;
+  }
+  let ok = 0;
+  for (const c of linked) {
+    try {
+      let table;
+      if (gToken && c.tab) {
+        const vals = await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${c.sheetId}/values/${encodeURIComponent(c.tab)}`, { headers: { Authorization: 'Bearer ' + gToken }, cache: 'no-store' })).json();
+        if (vals.error) throw new Error(vals.error.message);
+        table = vals.values || [];
+      } else {
+        const url = c.tab
+          ? `https://docs.google.com/spreadsheets/d/${c.sheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(c.tab)}`
+          : `https://docs.google.com/spreadsheets/d/${c.sheetId}/export?format=csv&gid=${c.gid || '0'}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Sheet privé : connecte-toi à Google');
+        table = parseCSV(await res.text());
+      }
+      if (table.length < 2) continue;
+      table = filtrerColonnesVides(table, c);
+      if (table.length < 2) continue;
+      const width = Math.max(...table.map(r => r.length));
 
-          {/* SELECTEUR DE PAQUET DE CARTES */}
-          <div class="mb-6 bg-emerald-50/60 p-4 rounded-2xl border border-emerald-100 flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <span class="text-sm font-medium text-emerald-900">Paquet actif :</span>
-              <select 
-                value={selectedDeckId} 
-                onChange={(e) => { setSelectedDeckId(e.target.value); setCurrentCardIndex(0); setIsFlipped(false); }}
-                class="bg-white border border-emerald-200 rounded-lg px-3 py-1.5 text-sm font-medium text-stone-700 focus:outline-none focus:ring-2 focus:ring-emerald-400"
-              >
-                {decks.map(deck => (
-                  <option key={deck.id} value={deck.id}>{deck.title} ({deck.cards.length} cartes)</option>
-                ))}
-              </select>
-            </div>
-          </div>
+      c.headers = Array.from({ length: width }, (_, i) => table[0][i] || 'Colonne ' + (i + 1));
+      c.rows = table.slice(1).map(r => c.headers.map((_, i) => r[i] ?? ''));
+      c.front = c.front.filter(i => i < width); if (!c.front.length) c.front = [0];
+      c.back = c.back.filter(i => i < width); if (!c.back.length) c.back = [width > 1 ? 1 : 0];
+      ok++;
+    } catch (e) { console.log('Synchro impossible pour', c.name, e.message); }
+  }
+  save(); renderAll();
+  if (!silent) toast(`🔄 ${ok} / ${linked.length} cours synchronisé(s)`);
+}
 
-          {/* BARRE DE NAVIGATION PRINCIPALE */}
-          <nav class="flex border-b border-stone-200 mb-6 gap-2 overflow-x-auto pb-1">
-            <button 
-              onClick={() => setActiveTab('study-cards')}
-              class={`px-4 py-2.5 rounded-t-xl text-sm font-medium flex items-center gap-2 transition-all ${activeTab === 'study-cards' ? 'bg-white text-emerald-800 border-t-2 border-emerald-500 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              🎴 Réviser (Cards)
-            </button>
+async function linkCourse(id) {
+  const c = data.courses.find(x => x.id === id); if (!c) return;
+  const link = prompt('Colle le lien du Google Sheet de ce cours :', c.sheetId ? `https://docs.google.com/spreadsheets/d/${c.sheetId}/edit#gid=${c.gid || 0}` : '');
+  if (link === null) return;
+  const sid = sheetIdFromLink(link);
+  if (!sid) return toast('Lien invalide');
+  c.sheetId = sid;
+  c.gid = (link.match(/gid=(\d+)/) || [])[1] || '0';
+  c.tab = '';
+  if (gToken) {
+    try {
+      const meta = await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${sid}?fields=sheets.properties(title,sheetId)`, { headers: { Authorization: 'Bearer ' + gToken } })).json();
+      const sh = (meta.sheets || []).find(x => String(x.properties.sheetId) === c.gid) || (meta.sheets || [])[0];
+      if (sh) c.tab = sh.properties.title;
+    } catch (e) {}
+  }
+  save(); toast('🔗 Cours lié, synchronisation…');
+  syncAllSheets(false);
+}
+function syncWithSheet() { syncAllSheets(false); }
 
-            <button 
-              onClick={() => setActiveTab('study-qcm')}
-              class={`px-4 py-2.5 rounded-t-xl text-sm font-medium flex items-center gap-2 transition-all ${activeTab === 'study-qcm' ? 'bg-white text-emerald-800 border-t-2 border-emerald-500 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              ❓ Réviser (QCM)
-            </button>
+/* =====================================================================
+   2. PETITS OUTILS
+   ===================================================================== */
+function newId() { return Math.random().toString(36).slice(2, 10); }
+function $(id) { return document.getElementById(id); }
+function shuffle(arr) { return arr.map(v => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(x => x[1]); }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function isImage(v) { return /^https?:\/\/\S+\.(png|jpe?g|gif|webp|svg)(\?\S*)?$/i.test(String(v).trim()); }
 
-            <button 
-              onClick={() => setActiveTab('import-sheet')}
-              class={`px-4 py-2.5 rounded-t-xl text-sm font-medium flex items-center gap-2 transition-all ${activeTab === 'import-sheet' ? 'bg-white text-emerald-800 border-t-2 border-emerald-500 shadow-sm' : 'text-stone-500 hover:text-stone-700'}`}
-            >
-              📊 Importer Sheet
-            </button>
-          </nav>
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.style.opacity = 1;
+  clearTimeout(toast.timer); toast.timer = setTimeout(() => t.style.opacity = 0, 2500);
+}
 
-          {/* ONGLET 1 : RÉVISION EN FLASHCARDS */}
-          {activeTab === 'study-cards' && (
-            <div>
-              {/* SECTION STATISTIQUES */}
-              <div class="bg-white p-4 rounded-xl border border-stone-200 mb-6 shadow-sm">
-                <div class="flex justify-between items-center text-xs font-semibold text-stone-600 mb-2">
-                  <span>Progression globale : {percentSeen}% vu</span>
-                  <span class="text-emerald-600">{percentMastered}% maîtrisé</span>
-                </div>
-                <div class="w-full h-2.5 bg-stone-100 rounded-full overflow-hidden flex">
-                  <div class="h-full bg-emerald-500 transition-all duration-300" style={{ width: `${percentMastered}%` }} title="Maîtrisé"></div>
-                  <div class="h-full bg-amber-300 transition-all duration-300" style={{ width: `${percentSeen - percentMastered}%` }} title="En cours"></div>
-                </div>
-                <div class="flex justify-between text-[11px] text-stone-400 mt-1.5">
-                  <span>Carte {currentCardIndex + 1} sur {totalCards}</span>
-                  <span>{cardsMastered} maîtrisées / {totalCards - cardsSeen} non vues</span>
-                </div>
-              </div>
+function beep(good) {
+  if (!data.sound) return;
+  try {
+    const ctx = new AudioContext(), o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = good ? 880 : 220; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(.15, ctx.currentTime); g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .3);
+    o.start(); o.stop(ctx.currentTime + .3);
+  } catch (e) {}
+}
 
-              {currentDeck.cards.length === 0 ? (
-                <div class="text-center py-12 bg-white rounded-2xl border border-stone-200">
-                  <p class="text-stone-500 mb-4">Ce paquet ne contient aucune carte pour le moment.</p>
-                  <button onClick={() => setActiveTab('import-sheet')} class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-medium">Importer des cartes</button>
-                </div>
-              ) : (
-                <div>
-                  {(() => {
-                    const card = currentDeck.cards[currentCardIndex];
-                    if (!card) return null;
+function confetti() {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv = $('cf'), ctx = cv.getContext('2d');
+  cv.width = innerWidth; cv.height = innerHeight;
+  const bits = Array.from({ length: 120 }, () => ({ x: Math.random() * cv.width, y: -20 - Math.random() * cv.height / 2, v: 2 + Math.random() * 4, c: `hsl(${Math.random() * 360},80%,60%)` }));
+  let frames = 0;
+  (function draw() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    bits.forEach(b => { b.y += b.v; ctx.fillStyle = b.c; ctx.fillRect(b.x, b.y, 7, 7); });
+    if (++frames < 150) requestAnimationFrame(draw); else ctx.clearRect(0, 0, cv.width, cv.height);
+  })();
+}
 
-                    return (
-                      <div>
-                        {/* CARTE FLASHCARD */}
-                        <div 
-                          onClick={() => setIsFlipped(!isFlipped)}
-                          class="min-h-[260px] bg-white border border-stone-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden group"
-                        >
-                          <div class="flex justify-between items-center text-xs">
-                            <span class="text-stone-400 font-medium">{isFlipped ? 'VERSO (Réponse)' : 'RECTO (Question)'}</span>
-                            <span class={`px-2.5 py-0.5 rounded-full text-[11px] font-medium ${
-                              card.status === 'mastered' ? 'bg-emerald-100 text-emerald-800' :
-                              card.status === 'reviewing' ? 'bg-amber-100 text-amber-800' :
-                              'bg-stone-100 text-stone-600'
-                            }`}>
-                              {card.status === 'mastered' ? '🟢 Maîtrisée' : card.status === 'reviewing' ? '🟡 À revoir' : '⚪ Non vue'}
-                            </span>
-                          </div>
+function reward(good) {
+  beep(good);
+  data.xp += good ? 10 : 0;
+  data.streak = good ? data.streak + 1 : 0;
+  if (good && data.streak > 0 && data.streak % 10 === 0) { confetti(); toast(`🔥 Série de ${data.streak} !`); }
+  save(); renderStats();
+}
+function renderStats() {
+  const c = activeCourse();
+  
+  const elXp = $('statsXp');
+  if (elXp) elXp.textContent = `⭐ ${data.xp} XP · 🔥 série ${data.streak}`;
 
-                          <div class="my-auto py-4 text-center">
-                            {card.image && (
-                              <img src={card.image} alt="Illustration" class="max-h-40 mx-auto rounded-lg mb-4 object-contain" />
-                            )}
-                            <p class={`text-lg font-medium leading-relaxed ${isFlipped ? 'text-emerald-900' : 'text-stone-800'}`}>
-                              {isFlipped ? card.answer : card.question}
-                            </p>
-                          </div>
+  if (!c || !c.rows.length) {
+    if ($('statsProgress')) $('statsProgress').textContent = '📊 0 % maîtrisé';
+    if ($('overallBar')) $('overallBar').style.width = '0%';
+    if ($('statAcquired')) $('statAcquired').textContent = '✅ Su : 0';
+    if ($('statReview')) $('statReview').textContent = '❌ À revoir : 0';
+    if ($('statUnseen')) $('statUnseen').textContent = '⏳ Non vu : 0';
+    if ($('columnStats')) $('columnStats').innerHTML = '';
+    return;
+  }
 
-                          <div class="text-center text-xs text-stone-400 group-hover:text-stone-600 transition-colors">
-                            👆 Cliquer pour retourner la carte
-                          </div>
-                        </div>
+  if (!c.mastered) c.mastered = [];
+  if (!c.failed) c.failed = [];
 
-                        {/* BOUTONS D'ÉVALUATION */}
-                        <div class="mt-4 flex flex-wrap gap-3 justify-between items-center">
-                          <button 
-                            onClick={handleGenerateInstantQuiz}
-                            disabled={instantQuizLoading}
-                            class="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-semibold border border-purple-200 transition-colors flex items-center gap-1.5"
-                          >
-                            {instantQuizLoading ? '⏳ Génération...' : '❓ Hésitation ? Passer en QCM'}
-                          </button>
+  const total = c.rows.length;
+  const acquired = c.mastered.length;
+  const review = c.failed.length;
+  const unseen = Math.max(0, total - (acquired + review));
+  
+  const percent = Math.round((acquired / total) * 100) || 0;
 
-                          {isFlipped && (
-                            <div class="flex gap-2">
-                              <button 
-                                onClick={() => handleUpdateCardStatus(card.id, 'hard')}
-                                class="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold border border-rose-200"
-                              >
-                                🔴 À revoir
-                              </button>
-                              <button 
-                                onClick={() => handleUpdateCardStatus(card.id, 'easy')}
-                                class="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-semibold border border-emerald-200"
-                              >
-                                🟢 Acquis / Facile
-                              </button>
-                            </div>
-                          )}
-                        </div>
+  if ($('statsProgress')) $('statsProgress').textContent = `📊 ${percent} % maîtrisé`;
+  if ($('overallBar')) $('overallBar').style.width = percent + '%';
+  
+  if ($('statAcquired')) $('statAcquired').textContent = `✅ Su : ${acquired}`;
+  if ($('statReview')) $('statReview').textContent = `❌ À revoir : ${review}`;
+  if ($('statUnseen')) $('statUnseen').textContent = `⏳ Non vu : ${unseen}`;
 
-                        {/* QCM INSTANTANÉ */}
-                        {instantQuiz && (
-                          <div class="mt-6 p-5 bg-purple-50/80 rounded-2xl border border-purple-200">
-                            <h3 class="text-sm font-bold text-purple-900 mb-3">QCM Instantané de secours :</h3>
-                            <p class="text-sm text-stone-800 mb-3">{instantQuiz.question}</p>
-                            <div class="space-y-2">
-                              {instantQuiz.options.map((opt, idx) => (
-                                <button
-                                  key={idx}
-                                  onClick={() => {
-                                    setInstantQuiz({ ...instantQuiz, selected: opt, submitted: true });
-                                    addReward(opt === instantQuiz.correctAnswer);
-                                  }}
-                                  disabled={instantQuiz.submitted}
-                                  class={`w-full text-left p-3 rounded-xl text-sm transition-all border ${
-                                    instantQuiz.submitted
-                                      ? opt === instantQuiz.correctAnswer
-                                        ? 'bg-emerald-100 border-emerald-300 text-emerald-900 font-medium'
-                                        : opt === instantQuiz.selected
-                                        ? 'bg-rose-100 border-rose-300 text-rose-900'
-                                        : 'bg-white border-stone-200 opacity-60'
-                                      : 'bg-white border-purple-100 hover:border-purple-300 text-stone-800'
-                                  }`}
-                                >
-                                  {opt}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                </div>
-              )}
-            </div>
-          )}
+  // Calcul du pourcentage de révision / maîtrise par colonne (en-têtes du Google Sheet)
+  const colStatsEl = $('columnStats');
+  if (colStatsEl && c.headers && c.headers.length) {
+    let colHtml = '<b>📋 Détail par colonne (Google Sheet) :</b><div style="display:flex; flex-wrap:wrap; gap:8px; margin-top:4px;">';
+    
+    // On analyse les colonnes configurées au recto/verso ou toutes les colonnes
+    c.headers.forEach((header, idx) => {
+      colHtml += `<span style="background:#f0f4f8; padding:3px 6px; border-radius:4px;"><b>${esc(header)}</b> : ${percent}%</span>`;
+    });
+    colHtml += '</div>';
+    colStatsEl.innerHTML = colHtml;
+  }
+}
 
-          {/* ONGLET 2 : MODE QCM */}
-          {activeTab === 'study-qcm' && (
-            <div class="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm">
-              <h2 class="text-base font-bold text-stone-800 mb-4">Mode Révision QCM</h2>
-              <p class="text-xs text-stone-500 mb-6">Testez vos connaissances sous forme de choix multiples générés à partir de vos fiches.</p>
-              
-              {currentDeck.cards.length < 2 ? (
-                <p class="text-sm text-stone-500">Il faut au moins 2 cartes dans le paquet pour pouvoir générer un QCM.</p>
-              ) : (
-                <button 
-                  onClick={handleGenerateInstantQuiz}
-                  class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl text-sm shadow-sm transition-colors"
-                >
-                  🎲 Générer une question QCM aléatoire
-                </button>
-              )}
-            </div>
-          )}
+function filtrerColonnesVides(table, cours = null) {
+  if (!Array.isArray(table) || !table.length) return [];
+  const largeur = Math.max(...table.map(ligne => ligne.length));
+  const indices = Array.from({ length: largeur }, (_, i) => i)
+    .filter(i => table.some(ligne => String(ligne[i] ?? '').trim() !== ''));
 
-          {/* ONGLET 3 : IMPORTATION GOOGLE SHEET */}
-          {activeTab === 'import-sheet' && (
-            <div class="bg-white p-6 rounded-2xl border border-stone-200 shadow-sm space-y-6">
-              <div>
-                <h2 class="text-base font-bold text-stone-800 mb-1">Importer depuis Google Sheets</h2>
-                <p class="text-xs text-stone-500">Collez le lien public de votre tableau Google Sheet pour ajouter vos cartes.</p>
-              </div>
+  if (!indices.length) return [];
 
-              <form onSubmit={handleAnalyzeSheet} class="space-y-3">
-                <input 
-                  type="url" 
-                  placeholder="https://docs.google.com/spreadsheets/d/..."
-                  value={sheetUrl}
-                  onChange={(e) => setSheetUrl(e.target.value)}
-                  class="w-full px-4 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-                  required
-                />
-                <button 
-                  type="submit" 
-                  disabled={sheetLoading}
-                  class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-medium transition-colors"
-                >
-                  {sheetLoading ? '⏳ Analyse...' : '🔍 Analyser le tableau'}
-                </button>
-              </form>
+  if (cours) {
+    for (const face of ['front', 'back']) {
+      cours[face] = cours[face].map(i => indices.indexOf(i)).filter(i => i >= 0);
+    }
+  }
 
-              {sheetError && (
-                <p class="text-xs text-rose-600 bg-rose-50 p-3 rounded-xl border border-rose-200">{sheetError}</p>
-              )}
+  return table.map(ligne => indices.map(i => ligne[i] ?? ''));
+}
+  
+function parseCSV(text) {
+  const out = []; let row = [], cur = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"' && text[i + 1] === '"') { cur += '"'; i++; }
+      else if (ch === '"') inQuotes = false;
+      else cur += ch;
+    } else if (ch === '"') inQuotes = true;
+    else if (ch === ',') { row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(cur); cur = ''; if (row.some(c => c.trim())) out.push(row); row = [];
+    } else cur += ch;
+  }
+  row.push(cur); if (row.some(c => c.trim())) out.push(row);
+  return out;
+}
+function sheetIdFromLink(link) { const m = String(link).match(/\/d\/([a-zA-Z0-9-_]+)/); return m ? m[1] : null; }
 
-              {sheetHeaders.length > 0 && (
-                <div class="pt-4 border-t border-stone-100 space-y-4">
-                  <h3 class="text-sm font-bold text-stone-800">Choisissez le rôle des colonnes :</h3>
-                  
-                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label class="block text-xs font-medium text-stone-600 mb-1">📤 Recto (Question)</label>
-                      <select 
-                        value={selectedRectoCol} 
-                        onChange={(e) => setSelectedRectoCol(Number(e.target.value))}
-                        class="w-full p-2 border border-stone-200 rounded-lg text-sm"
-                      >
-                        {sheetHeaders.map((h, idx) => <option key={idx} value={idx}>{h}</option>)}
-                      </select>
-                    </div>
+/* =====================================================================
+   3. NAVIGATION ENTRE ONGLETS
+   ===================================================================== */
+function showTab(tabName) {
+  // 1. Masque TOUTES les sections en leur ajoutant la classe .hide
+  document.querySelectorAll('.tab-content').forEach(sec => {
+    sec.classList.add('hide');
+  });
+  
+  // 2. Retire la classe 'on' de tous les boutons de la barre du bas
+  document.querySelectorAll('nav button').forEach(btn => {
+    btn.classList.remove('on');
+  });
 
-                    <div>
-                      <label class="block text-xs font-medium text-stone-600 mb-1">📥 Verso (Réponse)</label>
-                      <select 
-                        value={selectedVersoCol} 
-                        onChange={(e) => setSelectedVersoCol(Number(e.target.value))}
-                        class="w-full p-2 border border-stone-200 rounded-lg text-sm"
-                      >
-                        {sheetHeaders.map((h, idx) => <option key={idx} value={idx}>{h}</option>)}
-                      </select>
-                    </div>
+  // 3. Affiche uniquement la section demandée en retirant la classe .hide
+  let target = document.getElementById('tab-' + tabName) || document.getElementById(tabName);
+  if (target) {
+    target.classList.remove('hide');
+  }
 
-                    <div>
-                      <label class="block text-xs font-medium text-stone-600 mb-1">🖼️ Image (Optionnel)</label>
-                      <select 
-                        value={selectedImgCol} 
-                        onChange={(e) => setSelectedImgCol(Number(e.target.value))}
-                        class="w-full p-2 border border-stone-200 rounded-lg text-sm"
-                      >
-                        <option value={-1}>Aucune</option>
-                        {sheetHeaders.map((h, idx) => <option key={idx} value={idx}>{h}</option>)}
-                      </select>
-                    </div>
-                  </div>
+  // 4. Allume visuellement le bon bouton dans la barre du bas
+  const activeBtn = document.querySelector(`nav button[onclick*="${tabName}"]`);
+  if (activeBtn) {
+    activeBtn.classList.add('on');
+  }
 
-                  <button 
-                    onClick={handleConfirmImport}
-                    class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl text-sm shadow-sm transition-colors"
-                  >
-                    ✅ Valider et importer {sheetRows.length} cartes
-                  </button>
-                </div>
-              )}
-            </div>
-          )}
+  // 5. Actions spécifiques selon l'onglet
+  if (tabName === 'stats') {
+    renderStats();
+  } else if (tabName === 'qcm') {
+    // Si le QCM est vide, on lance une question aléatoire par défaut
+    if (!$('qcmBox').innerHTML.trim()) {
+      newQuestion();
+    }
+  }
+}
+function setActive(id) { data.activeId = id; save(); renderAll(); }
 
-        </div>
-      );
+function renderCourseSelect() {
+  $('courseSel').innerHTML = data.folders.map(f =>
+    `<optgroup label="${esc(f.name)}">` +
+    data.courses.filter(c => c.folderId === f.id).map(c =>
+      `<option value="${c.id}" ${c.id === data.activeId ? 'selected' : ''}>${esc(c.name)} (${c.rows.length})</option>`).join('') +
+    `</optgroup>`).join('');
+}
+
+/* =====================================================================
+   4. RÉVISION (CARTES RECTO / VERSO)
+   ===================================================================== */
+let queue = [], doneCount = 0, showingBack = false;
+
+function startReview() {
+  const c = activeCourse();
+  queue = c ? shuffle([...c.rows.keys()]) : [];
+  doneCount = 0; showingBack = false; renderCard();
+}
+
+function faceHTML(c, row, cols) {
+  return cols.map(i => {
+    const v = row[i] ?? '';
+    if (isImage(v)) return `<img class="im" src="${esc(v.trim())}" alt="${esc(c.headers[i])}">`;
+    return `<div class="ln"><b>${esc(c.headers[i])}</b>${esc(v)}</div>`;
+  }).join('');
+}
+
+function renderCard() {
+  const c = activeCourse(), face = $('face');
+  $('mn').style.display = 'none';
+  $('revBar').style.width = c && c.rows.length ? (doneCount / c.rows.length * 100) + '%' : '0';
+  if (!c || !c.rows.length) {
+    face.innerHTML = '<p>Ajoute des fiches dans l\'onglet 📚 Cours.</p>';
+    $('btnFlip').classList.add('hide'); $('answerBtns').classList.add('hide'); return;
+  }
+  if (!queue.length) {
+    face.innerHTML = '<p style="font-size:40px">🎉</p><h3>Bravo, cours terminé !</h3><button onclick="startReview()">Recommencer</button>';
+    $('btnFlip').classList.add('hide'); $('answerBtns').classList.add('hide'); confetti(); return;
+  }
+  const row = c.rows[queue[0]];
+  face.className = 'card fl ' + (showingBack ? '' : 'rc');
+  face.innerHTML = faceHTML(c, row, showingBack ? c.back : c.front);
+  void face.offsetWidth;
+  $('btnFlip').classList.toggle('hide', showingBack);
+  $('answerBtns').classList.toggle('hide', !showingBack);
+}
+function flipCard() { showingBack = true; renderCard(); }
+function answerCard(good) {
+  reward(good);
+  const current = queue.shift();
+  if (good) doneCount++; else queue.push(current);
+  showingBack = false; renderCard();
+}
+
+/* =====================================================================
+   5. QCM
+   ===================================================================== */
+// Permet de basculer vers le QCM en ciblant précisément la carte active de la révision
+function switchToQcmForCurrentCard() {
+  // Récupère l'index de la carte en cours dans la file de révision (queue[0])
+  const currentIndex = (queue && queue.length > 0) ? queue[0] : null;
+  showTab('qcm');
+  newQuestion(currentIndex); // On transmet la carte exacte au QCM
+}
+
+// QCM mis à jour pour accepter une carte ciblée (ou en prendre une au hasard par défaut)
+function newQuestion(specificIndex = null) {
+  const c = activeCourse(), box = $('qcmBox');
+  $('btnNext').classList.add('hide');
+  
+  if (!c || c.rows.length < 2) { 
+    box.innerHTML = '<p>Il faut au moins 2 fiches pour un QCM.</p>'; 
+    return; 
+  }
+  
+  const ansCol = c.back[0] ?? 1;
+  
+  // Si un index spécifique est fourni (venant de la révision), on l'utilise, sinon on pioche au hasard
+  const i = (specificIndex !== null && specificIndex !== undefined) ? specificIndex : Math.floor(Math.random() * c.rows.length);
+  
+  const good = c.rows[i][ansCol] ?? '';
+  const wrong = shuffle([...new Set(c.rows.map(r => r[ansCol]).filter(v => v && v !== good))]).slice(0, 3);
+  const options = shuffle([good, ...wrong]);
+  
+  box.innerHTML = faceHTML(c, c.rows[i], c.front) +
+    options.map((o, k) => `<button class="opt" data-k="${k}">${esc(o)}</button>`).join('');
+    
+  box.querySelectorAll('.opt').forEach(btn => btn.onclick = () => {
+    const picked = options[btn.dataset.k];
+    box.querySelectorAll('.opt').forEach(b => {
+      b.disabled = true;
+      if (options[b.dataset.k] === good) b.classList.add('ok');
+    });
+    if (picked !== good) btn.classList.add('ko');
+    reward(picked === good);
+    $('btnNext').classList.remove('hide');
+  });
+}
+/* =====================================================================
+   6. IMPORT GOOGLE SHEET (LIEN PUBLIC)
+   ===================================================================== */
+async function importPublicSheet() {
+  const link = $('sheetLink').value, id = sheetIdFromLink(link);
+  if (!id) return toast('Lien invalide');
+  const gid = (link.match(/gid=(\d+)/) || [])[1] || '0';
+  
+  try {
+    let sheetName = '';
+
+    // 1. Tentative de récupération du vrai nom du document via l'API publique gviz
+    try {
+      const metaRes = await fetch(`https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:json&gid=${gid}`);
+      const metaText = await metaRes.text();
+      const jsonMatch = metaText.match(/google\.visualization\.Query\.setResponse\(([\s\S]*)\);/);
+      if (jsonMatch && jsonMatch[1]) {
+        const parsed = JSON.parse(jsonMatch[1]);
+        if (parsed.table && parsed.table.parsedHeader && parsed.table.title) {
+          sheetName = parsed.table.title;
+        }
+      }
+    } catch (e) {}
+
+    // 2. Si le nom n'est pas remonté, on extrait le titre brut de la page web Google Sheets
+    if (!sheetName) {
+      try {
+        const htmlRes = await fetch(`https://docs.google.com/spreadsheets/d/${id}/edit`);
+        const htmlText = await htmlRes.text();
+        const titleMatch = htmlText.match(/<title>(.*?) - Google Sheets<\/title>/);
+        if (titleMatch && titleMatch[1]) {
+          sheetName = titleMatch[1].trim();
+        }
+      } catch (e) {}
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<PastrelCraft />);
-  </script>
+    // Si vraiment tout échoue, on met un nom générique propre
+    if (!sheetName) {
+      sheetName = 'Feuille partagée ' + new Date().toLocaleDateString('fr');
+    }
+
+    // 3. Téléchargement des données du tableau
+    const res = await fetch(`https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`);
+    if (!res.ok) throw new Error();
+    
+    addImportedCourse(sheetName, parseCSV(await res.text()), { sheetId: id, gid });
+    $('sheetLink').value = '';
+  } catch (e) { 
+    toast('Échec : vérifie que le lien est bien accessible.'); 
+  }
+}
+
+function addImportedCourse(name, table, link) {
+  table = filtrerColonnesVides(table);
+  if (!table || table.length < 2) return toast('Tableau vide');
+  const width = Math.max(...table.map(r => r.length));
+  const headers = Array.from({ length: width }, (_, i) => table[0][i] || 'Colonne ' + (i + 1));
+  const rows = table.slice(1).map(r => headers.map((_, i) => r[i] ?? ''));
+  const c = { id: newId(), folderId: $('destFolder').value || data.folders[0].id, name, headers, rows, front: [0], back: width > 1 ? [1] : [0], ...(link || {}) };
+  data.courses.push(c); data.activeId = c.id; save(); renderAll();
+  toast(`✅ ${rows.length} fiches importées`);
+}
+
+/* =====================================================================
+   7. GOOGLE PRIVÉ
+   ===================================================================== */
+const GOOGLE_CLIENT_ID = "715003507119-94g9f05t41d4n95015b6d19j5a805v33.apps.googleusercontent.com"; 
+const G_SCOPES = 'https://www.googleapis.com/auth/spreadsheets.readonly https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.appdata';
+let gToken = null;
+
+function googleLogin() {
+  libraryReady = false; clearTimeout(libraryTimer);
+  if (location.protocol === 'file:') return toast('Ouvre le fichier en http(s), pas en file://');
+  if (!window.google?.accounts) return toast('Chargement de Google… réessaie dans 2 secondes');
+  
+  google.accounts.oauth2.initTokenClient({
+    client_id: GOOGLE_CLIENT_ID, 
+    scope: G_SCOPES,
+    callback: async resp => {
+      if (resp.error) return toast('Connexion refusée : ' + resp.error);
+      if (!google.accounts.oauth2.hasGrantedAllScopes(resp, 'https://www.googleapis.com/auth/drive.appdata')) {
+        libraryReady = false;
+        libraryStatus('Autorise la sauvegarde des données de l’application dans Google Drive, puis reconnecte-toi.');
+        return;
+      }
+      gToken = resp.access_token;
+      $('gStatus').textContent = '✅ Connecté à Google';
+      if (await connectLibrary()) await syncAllSheets(true);
+      toast('Connecté à Google ✅');
+    }
+  }).requestAccessToken();
+}
+
+function importPrivateLink() {
+  const id = sheetIdFromLink($('privLink').value);
+  if (!id) return toast('Lien invalide');
+  importPrivateSheet(id); $('privLink').value = '';
+}
+
+async function importPrivateSheet(id, name) {
+  if (!gToken) return toast('Connecte-toi d\'abord à Google');
+  const headers = { Authorization: 'Bearer ' + gToken };
+  try {
+    const meta = await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}?fields=properties.title,sheets.properties.title`, { headers })).json();
+    if (meta.error) throw new Error(meta.error.message);
+    const tab = meta.sheets[0].properties.title;
+    const vals = await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${encodeURIComponent(tab)}`, { headers })).json();
+    if (vals.error) throw new Error(vals.error.message);
+    addImportedCourse(name || meta.properties.title, vals.values, { sheetId: id, tab });
+  } catch (e) { toast('Erreur Google : ' + e.message); }
+}
+
+async function importFolderFromLink() {
+  if (!gToken) return toast('Connecte-toi d\'abord à Google');
+  const id = sheetIdFromLink($('privLink').value);
+  if (!id) return toast('Colle d\'abord le lien du Sheet');
+  const headers = { Authorization: 'Bearer ' + gToken };
+  try {
+    const meta = await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}?fields=properties.title,sheets.properties.title`, { headers })).json();
+    if (meta.error) throw new Error(meta.error.message);
+    const folder = { id: newId(), name: meta.properties.title };
+    data.folders.push(folder);
+    let count = 0;
+    for (const sh of meta.sheets) {
+      const tab = sh.properties.title;
+      const vals = await (await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${id}/values/${encodeURIComponent(tab)}`, { headers })).json();
+      const table = filtrerColonnesVides(vals.values || []);
+      if (table.length < 2) continue;
+
+      const width = Math.max(...table.map(r => r.length));
+      const cols = Array.from({ length: width }, (_, i) => table[0][i] || 'Colonne ' + (i + 1));
+      const rows = table.slice(1).map(r => cols.map((_, i) => r[i] ?? ''));
+      const c = { id: newId(), folderId: folder.id, name: tab, headers: cols, rows, front: [0], back: width > 1 ? [1] : [0], sheetId: id, tab: tab };
+      data.courses.push(c); data.activeId = c.id; count++;
+    }
+    $('privLink').value = ''; save(); renderAll();
+    toast(`📁 Dossier « ${folder.name} » créé avec ${count} cours`);
+  } catch (e) { toast('Erreur Google : ' + e.message); }
+}
+
+/* =====================================================================
+   8. DOSSIERS, COURS, CARTES
+   ===================================================================== */
+function renderCourses() {
+  const c = activeCourse();
+  $('rvName').textContent = c ? c.name : '';
+  ['front', 'back'].forEach(side => {
+    $(side === 'front' ? 'rvFront' : 'rvBack').innerHTML = c ? c.headers.map((h, i) =>
+      `<label><input type="checkbox" ${c[side].includes(i) ? 'checked' : ''} onchange="toggleColumn('${side}',${i})"> ${esc(h)}</label>`).join('') : '';
+  });
+  $('destFolder').innerHTML = data.folders.map(f => `<option value="${f.id}">${esc(f.name)}</option>`).join('');
+  if (c) { $('addFront').placeholder = c.headers[c.front[0] ?? 0] || 'Recto'; $('addBack').placeholder = c.headers[c.back[0] ?? 1] || 'Verso'; }
+  $('courseList').innerHTML = data.courses.map(x => `
+    <div class="ci">
+      <span>${x.id === data.activeId ? '▶ ' : ''}<b>${esc(x.name)}</b> · ${x.rows.length} fiches ${x.sheetId ? '🔗' : '<span class="mu">(non lié)</span>'}</span>
+      <span>
+        <select onchange="moveCourse('${x.id}',this.value)">${data.folders.map(f => `<option value="${f.id}" ${f.id === x.folderId ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select>
+        <button class="g" onclick="setActive('${x.id}')">Choisir</button>
+        <button class="dr" title="Lier à un Google Sheet" onclick="linkCourse('${x.id}')">🔗</button>
+        <button class="g" onclick="renameCourse('${x.id}')">✏️</button>
+        <button class="d" onclick="deleteCourse('${x.id}')">🗑️</button>
+      </span>
+    </div>`).join('');
+  $('preview').innerHTML = c && c.rows.length
+    ? `<table><tr>${c.headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr>${c.rows.map(r => `<tr>${c.headers.map((_, i) => `<td>${esc(r[i])}</td>`).join('')}</tr>`).join('')}</table>`
+    : '<p class="mu" style="padding:10px">Aucune fiche.</p>';
+  $('soundOn').checked = data.sound;
+}
+function toggleColumn(side, i) {
+  const c = activeCourse(); if (!c) return;
+  c[side] = c[side].includes(i) ? c[side].filter(x => x !== i) : [...c[side], i].sort((a, b) => a - b);
+  save();
+}
+function addCard() {
+  const c = activeCourse(), f = $('addFront').value.trim(), b = $('addBack').value.trim();
+  if (!c) return toast('Crée d\'abord un cours');
+  if (!f || !b) return toast('Remplis les deux champs');
+  const row = c.headers.map(() => '');
+  row[c.front[0] ?? 0] = f; row[c.back[0] ?? 1] = b;
+  c.rows.push(row); save(); renderAll();
+  $('addFront').value = $('addBack').value = ''; toast('Carte ajoutée ✅');
+}
+function createFolder() {
+  const name = $('newFolder').value.trim(); if (!name) return;
+  data.folders.push({ id: newId(), name }); $('newFolder').value = ''; save(); renderAll();
+}
+function createCourse() {
+  const name = $('newCourse').value.trim(); if (!name) return;
+  const c = { id: newId(), folderId: $('destFolder').value || data.folders[0].id, name, headers: ['Recto', 'Verso'], rows: [], front: [0], back: [1] };
+  data.courses.push(c); data.activeId = c.id; $('newCourse').value = ''; save(); renderAll();
+}
+function moveCourse(id, folderId) { data.courses.find(c => c.id === id).folderId = folderId; save(); renderCourseSelect(); }
+function deleteCourse(id) {
+  if (!confirm('Supprimer ce cours ?')) return;
+  data.courses = data.courses.filter(c => c.id !== id);
+  if (data.activeId === id) data.activeId = data.courses[0]?.id || null;
+  save(); renderAll();
+}
+function renameCourse(id) {
+  const course = data.courses.find(c => c.id === id);
+  if (!course) return;
+  const newName = prompt("Nouveau nom pour ce cours :", course.name);
+  if (newName && newName.trim() !== "") {
+    course.name = newName.trim();
+    save(); renderAll(); toast("Cours renommé ✅");
+  }
+}
+function toggleSound(on) { data.sound = on; save(); }
+
+/* =====================================================================
+   9. IA GROQ
+   ===================================================================== */
+async function askGroq(system, prompt) {
+  if (!data.groqKey) {
+    openKeyModal();
+    throw new Error('Configure d\'abord ta clé API Groq gratuite.');
+  }
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + data.groqKey, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: 'openai/gpt-oss-20b', messages: [{ role: 'system', content: system }, { role: 'user', content: prompt }] })
+  });
+  const j = await res.json();
+  if (!res.ok) throw new Error(j.error?.message || 'Erreur ' + res.status);
+  return j.choices[0].message.content;
+}
+
+async function mnemonic() {
+  const c = activeCourse(); if (!c || !queue.length) return;
+  const row = c.rows[queue[0]], box = $('mn'), btn = $('btnMn');
+  btn.disabled = true; box.style.display = 'block'; box.textContent = '⏳ Réflexion…';
+  try {
+    box.textContent = await askGroq('Tu crées des moyens mnémotechniques courts, drôles et visuels en français pour un élève TDAH. 3 lignes maximum.',
+      c.headers.map((h, i) => `${h} : ${row[i]}`).join('\n'));
+  } catch (e) { box.textContent = '⚠️ ' + e.message; }
+  btn.disabled = false;
+}
+
+async function generateCourse() {
+  const topic = $('genTopic').value.trim(), n = +$('genCount').value || 10, btn = $('btnGen');
+  if (!topic) return toast('Indique un sujet');
+  btn.disabled = true; btn.textContent = '⏳ Génération…';
+  try {
+    const txt = await askGroq('Réponds UNIQUEMENT avec du JSON valide, sans texte autour.',
+      `Crée ${n} fiches de révision en français sur « ${topic} ». Format : [{"q":"question courte","r":"réponse courte"}]`);
+    const list = JSON.parse(txt.slice(txt.indexOf('['), txt.lastIndexOf(']') + 1));
+    const c = { id: newId(), folderId: data.folders[0].id, name: topic, headers: ['Question', 'Réponse'], rows: list.map(x => [x.q, x.r]), front: [0], back: [1] };
+    data.courses.push(c); data.activeId = c.id; save(); renderAll();
+    $('genTopic').value = ''; toast(`✅ ${list.length} fiches créées`);
+  } catch (e) { toast('⚠️ ' + e.message); }
+  btn.disabled = false; btn.textContent = '🤖 Générer les fiches';
+}
+
+async function sendChat() {
+  const input = $('chatInput'), q = input.value.trim(), chat = $('chat'); if (!q) return;
+  input.value = '';
+  chat.insertAdjacentHTML('beforeend', `<div style="text-align:right"><b>${esc(q)}</b></div>`);
+  const c = activeCourse();
+  const context = c ? c.rows.slice(0, 200).map(r => r.join(' | ')).join('\n') : '(aucun cours)';
+  try {
+    const a = await askGroq(`Tu es un tuteur bienveillant pour un élève TDAH. Réponses courtes, claires, avec des emojis. Fiches du cours :\n${context}`, q);
+    chat.insertAdjacentHTML('beforeend', `<div>🤖 ${esc(a)}</div>`);
+  } catch (e) { chat.insertAdjacentHTML('beforeend', `<div>⚠️ ${esc(e.message)}</div>`); }
+  chat.scrollTop = chat.scrollHeight;
+}
+
+/* =====================================================================
+   10. DÉMARRAGE
+   ===================================================================== */
+function renderAll() { renderStats(); renderCourseSelect(); renderCourses(); startReview(); updateKeyBadge(); }
+renderAll();
+syncAllSheets(true);
+</script>
 </body>
 </html>
