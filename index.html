@@ -863,17 +863,20 @@ function newQuestion(specificIndex = null) {
   const wrong = shuffle([...new Set(c.rows.map(r => r[ansCol]).filter(v => v && v !== good))]).slice(0, 3);
   const options = shuffle([good, ...wrong]);
   
-  box.innerHTML = faceHTML(c, c.rows[i], c.front) +
+  const frontCols = (c.front && c.front.length) ? c.front : [0];
+  box.innerHTML = faceHTML(c, c.rows[i], frontCols) +
     options.map((o, k) => `<button class="opt" data-k="${k}">${esc(o)}</button>`).join('');
     
   box.querySelectorAll('.opt').forEach(btn => btn.onclick = () => {
     const picked = options[btn.dataset.k];
+    const isCorrect = (picked === good); // 👈 Déclaration de isCorrect ici
+
     box.querySelectorAll('.opt').forEach(b => {
       b.disabled = true;
       if (options[b.dataset.k] === good) b.classList.add('ok');
     });
-    if (picked !== good) btn.classList.add('ko');
-    reward(picked === good);
+    if (!isCorrect) btn.classList.add('ko');
+    reward(isCorrect);
   
     // 📊 MISE À JOUR DES STATS POUR LE QCM
     if (c) {
@@ -895,7 +898,7 @@ function newQuestion(specificIndex = null) {
       renderStats(); // Actualise l'affichage des stats en temps réel
     }
 
-    if ('btnNext').classList.remove('hide');
+    if (btnNext) btnNext.classList.remove('hide'); // 👈 Utilisation propre de la variable btnNext
   });
 }
 /* =====================================================================
